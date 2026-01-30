@@ -15,10 +15,13 @@ import StatusDashboard from './pages/StatusDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
+import AuthStatusManager from './components/AuthStatusManager';
+
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <AuthStatusManager />
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Navbar />
           <main style={{ flex: 1 }}>

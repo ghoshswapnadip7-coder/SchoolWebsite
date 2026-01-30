@@ -10,6 +10,7 @@ import {
 const Dashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const fileInputRef = useRef(null);
     
     // Data States
     const [profile, setProfile] = useState(null);
@@ -144,12 +145,25 @@ const Dashboard = () => {
         printWindow.document.close();
     };
 
-    const handleRequestProfilePic = async () => {
-        const url = prompt("Paste the DIRECT IMAGE URL for your new profile picture (Unsplash/Imgur etc):");
-        if (!url) return;
-        
+    const handleProfilePicChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
         setSubmitting(true);
+        const data = new FormData();
+        data.append('file', file);
+
         try {
+            // 1. Upload Image
+            const uploadRes = await fetch('http://localhost:5000/api/upload', { 
+                method: 'POST', 
+                body: data 
+            });
+            
+            if (!uploadRes.ok) throw new Error('Image upload failed');
+            const { url } = await uploadRes.json();
+
+            // 2. Submit Request
             const res = await fetch('http://localhost:5000/api/student/requests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
@@ -163,35 +177,112 @@ const Dashboard = () => {
             if (res.ok) {
                 alert("Request submitted! Your profile will update once an admin approves it.");
                 fetchData();
+            } else {
+                alert("Failed to create request.");
             }
-        } catch (err) { alert("Failed to submit request"); }
-        finally { setSubmitting(false); }
+        } catch (err) { 
+            console.error(err);
+            alert("Failed to submit request."); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const handlePrintResult = () => {
-        const resultRows = results.map(r => `
-            <tr><td>${r.subject}</td><td>${r.marks}</td><td>${r.grade}</td><td>${r.semester}</td></tr>
-        `).join('');
+        // Updated Logic for Class 11/12: Best of 5 Logic
+        // 1. Compulsory: Bengali (BEN), English (ENG)
+        // 2. Electives: Top 3 are counted. Others are Optional.
+        // 3. Total is out of 500.
+        
+        const isSenior = ['Class-11', 'Class-12'].includes(profile?.class);
+        let totalMarks = 0;
+        let maxMarks = 0;
+        let optionalSubjects = [];
 
-        const printWindow = window.open('', '', 'height=800,width=1000');
+        if (isSenior) {
+            const getM = (r) => Number(r.marks) || 0;
+            // Improved regex to catch BEN, ENG, Bengali, English
+            const compulsory = results.filter(r => /^(ben|eng|bengali|english)/i.test(r.subject)); 
+            
+            // Get electives and sort by marks descending
+            const electives = results.filter(r => !/^(ben|eng|bengali|english)/i.test(r.subject))
+                                       .sort((a, b) => getM(b) - getM(a));
+            
+            // Top 3 electives are valid for total
+            const validElectives = electives.slice(0, 3);
+            
+            // Any elective NOT in top 3 is optional
+            if (electives.length > 3) {
+                optionalSubjects = electives.slice(3).map(e => e.subject);
+            }
+            
+            totalMarks = compulsory.reduce((sum, r) => sum + getM(r), 0) + 
+                         validElectives.reduce((sum, r) => sum + getM(r), 0);
+            maxMarks = 500;
+        } else {
+            // For junior classes, all subjects count
+            totalMarks = results.reduce((sum, r) => sum + (Number(r.marks) || 0), 0);
+            maxMarks = results.length * 100;
+        }
+
+        const percentage = maxMarks > 0 ? (totalMarks / maxMarks) * 100 : 0;
+        
+        let overallGrade = 'F';
+        if (percentage >= 90) overallGrade = 'AA';
+        else if (percentage >= 80) overallGrade = 'A+';
+        else if (percentage >= 60) overallGrade = 'A';
+        else if (percentage >= 50) overallGrade = 'B';
+        else if (percentage >= 40) overallGrade = 'C';
+        else if (percentage >= 30) overallGrade = 'D';
+
+        const resultRows = results.map(r => {
+            const isOpt = isSenior && optionalSubjects.includes(r.subject);
+            return `
+            <tr>
+                <td style="text-align: left; padding-left: 20px;">
+                    ${r.subject} 
+                    ${isOpt ? '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic; margin-left: 5px;">(Optional)</span>' : ''}
+                </td>
+                <td style="text-align: right; padding-right: 20px;">
+                    ${r.marks}
+                </td>
+                <td style="text-align: center;">${r.grade}</td>
+                <td style="text-align: center;">${r.semester}</td>
+            </tr>
+            `;
+        }).join('');
+
+        const printWindow = window.open('', '_blank', 'height=800,width=1000');
         printWindow.document.write(`
             <html>
                 <head>
                     <title>Report Card - ${profile?.name}</title>
                     <style>
-                        body { font-family: 'Inter', sans-serif; padding: 50px; color: #1e293b; }
-                        .header { text-align: center; border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
-                        .header h1 { margin: 0; color: #0f172a; font-size: 28px; text-transform: uppercase; }
-                        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
-                        th, td { border: 1px solid #e2e8f0; padding: 15px; text-align: left; }
-                        th { background: #f8fafc; font-size: 12px; text-transform: uppercase; }
-                        .footer { margin-top: 100px; display: flex; justify-content: space-between; }
-                        .sig { text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 10px; font-weight: 600; }
+                        @page { size: A4; margin: 0; }
+                        body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+                        .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 30px; }
+                        .header h1 { margin: 0; color: #0f172a; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+                        .header p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+                        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                        th, td { border: 1px solid #e2e8f0; padding: 12px; }
+                        th { background: #f1f5f9; font-size: 12px; text-transform: uppercase; font-weight: 700; color: #475569; }
+                        .summary { background: #0f172a; color: white; padding: 25px; border-radius: 12px; margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+                        .summary div div:first-child { font-size: 11px; text-transform: uppercase; opacity: 0.8; margin-bottom: 8px; letter-spacing: 1px; }
+                        .summary div div:last-child { font-size: 28px; font-weight: 700; }
+                        .footer { margin-top: 80px; display: flex; justify-content: space-between; page-break-inside: avoid; }
+                        .sig { text-align: center; width: 200px; border-top: 1px solid #94a3b8; padding-top: 10px; font-weight: 600; font-size: 14px; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; padding: 20px; }
+                            .summary { background: #0f172a !important; color: white !important; }
+                        }
                     </style>
                 </head>
                 <body>
-                    <div class="header"><h1>Ranaghat P.C.H(H.S).SCHOOL</h1><p>Academic Year 2024-25</p></div>
+                    <div class="header">
+                        <h1>Ranaghat Pal Chowdhury High (H.S.) School</h1>
+                        <p>Estd: 1853 | Annual Report Card | 2024-25</p>
+                    </div>
                     <div class="info-grid">
                         <div><strong>Name:</strong> ${profile?.name}</div>
                         <div><strong>ID:</strong> ${profile?.studentId}</div>
@@ -199,6 +290,13 @@ const Dashboard = () => {
                         <div><strong>Roll No:</strong> ${profile?.rollNumber}</div>
                     </div>
                     <table><thead><tr><th>Subject</th><th>Marks</th><th>Grade</th><th>Exam</th></tr></thead><tbody>${resultRows}</tbody></table>
+                    
+                    <div class="summary">
+                        <div><div>Total Marks</div><div>${totalMarks} / ${maxMarks}</div></div>
+                        <div><div>Percentage</div><div>${percentage.toFixed(2)}%</div></div>
+                        <div><div>Overall Grade</div><div>${overallGrade}</div></div>
+                    </div>
+
                     <div class="footer"><div class="sig">Class Teacher</div><div class="sig">Principal</div></div>
                     <script>window.onload = () => { window.print(); window.close(); }</script>
                 </body>
@@ -248,7 +346,7 @@ const Dashboard = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: 'var(--shadow-md)', borderLeft: '6px solid var(--primary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div 
-                        onClick={handleRequestProfilePic}
+                        onClick={() => fileInputRef.current.click()}
                         title="Click to request profile picture change"
                         style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #e2e8f0', transition: '0.2s', position: 'relative' }}
                         onMouseOver={e => e.currentTarget.style.borderColor = 'var(--primary)'}
@@ -258,6 +356,13 @@ const Dashboard = () => {
                         <div style={{ position: 'absolute', bottom: 0, right: 0, background: 'var(--primary)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Plus size={12} />
                         </div>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            style={{ display: 'none' }} 
+                            accept="image/*"
+                            onChange={handleProfilePicChange} 
+                        />
                     </div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: '1.75rem' }}>{profile?.name}</h1>
@@ -306,9 +411,17 @@ const Dashboard = () => {
                                 </div>
 
                                 {paymentMethod === 'UPI' && (
-                                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'white', borderRadius: '10px', border: '1px dashed #0ea5e9' }}>
-                                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>School UPI ID</p>
-                                        <strong style={{ fontSize: '1.1rem', color: '#0ea5e9' }}>{SCHOOL_UPI}</strong>
+                                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'white', borderRadius: '10px', border: '1px dashed #0ea5e9', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                        <div>
+                                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>School UPI ID</p>
+                                            <strong style={{ fontSize: '1.1rem', color: '#0ea5e9' }}>{SCHOOL_UPI}</strong>
+                                        </div>
+                                        <img 
+                                            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=9641360922@fam&pn=Swapnadip%20Ghosh&mc=0000&mode=02&purpose=00" 
+                                            alt="UPI QR" 
+                                            style={{ width: '120px', height: '120px', padding: '5px', border: '1px solid #e2e8f0', borderRadius: '8px' }} 
+                                        />
+                                        <p style={{ margin: 0, fontSize: '0.7rem', color: '#94a3b8' }}>Scan to Pay</p>
                                     </div>
                                 )}
 
@@ -354,10 +467,23 @@ const Dashboard = () => {
                         ) : (
                             <div style={{ display: 'grid', gap: '0.75rem' }}>
                                 {myRequests.map(req => (
-                                    <div key={req.id} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px' }}>
+                                    <div key={req.id} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', position: 'relative' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
                                             <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{req.type}</span>
-                                            <span style={{ fontWeight: 800, color: req.status==='APPROVED'?'green':req.status==='DECLINED'?'red':'orange' }}>{req.status}</span>
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                <span style={{ fontWeight: 800, color: req.status==='APPROVED'?'green':req.status==='DECLINED'?'red':'orange' }}>{req.status}</span>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if(!window.confirm('Hide this request from your dashboard?')) return;
+                                                        await fetch(`http://localhost:5000/api/student/requests/${req.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+                                                        fetchData();
+                                                    }}
+                                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                    title="Remove from view"
+                                                >
+                                                    <XCircle size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div style={{ fontWeight: 600, marginTop: '5px' }}>{req.subject}</div>
                                         {req.adminComment && (

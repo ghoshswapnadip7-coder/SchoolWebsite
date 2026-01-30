@@ -5,6 +5,7 @@ const Result = require('../models/Result');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const StudentRequest = require('../models/StudentRequest');
 const Payment = require('../models/Payment');
+const { sendApprovalEmail } = require('../utils/email'); // Import Email Service
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -147,6 +148,12 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
             // High security: ensure we have a password (fallback for older requests)
             const finalPassword = request.password || await bcrypt.hash('student123', 10);
 
+            // Assign Auto-Increment Roll Number for the specific class
+            const lastStudentInClass = await User.findOne({ class: request.class }).sort({ rollNumber: -1 });
+            const neRoll = lastStudentInClass && !isNaN(lastStudentInClass.rollNumber) 
+                ? Number(lastStudentInClass.rollNumber) + 1 
+                : 1;
+
             // Create the student account
             await User.create({
                 name: request.name,
@@ -154,10 +161,22 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 password: finalPassword, 
                 studentId: request.studentId,
                 class: request.class,
-                rollNumber: request.rollNumber,
+                rollNumber: neRoll, // Assign calculated roll
+                stream: request.stream,
+                subjects: request.subjects,
                 role: 'STUDENT'
             });
-            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved | Body: Hello ${request.name}, your account is ready.`);
+            
+            // Send Approval Email
+            await sendApprovalEmail(
+                request.email, 
+                request.name, 
+                request.studentId, 
+                request.stream, // e.g. 'Science'
+                request.subjects // e.g. ['Physics', 'Chemistry']
+            );
+            
+            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved`);
         } else {
             console.log(`[SYSTEM] Account for ${request.email} already exists. Marking request as ACCEPTED.`);
         }

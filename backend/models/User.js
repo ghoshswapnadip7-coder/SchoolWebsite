@@ -19,6 +19,14 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  stream: {
+    type: String,
+    required: false,
+  },
+  subjects: {
+    type: [String],
+    required: false,
+  },
   name: {
     type: String,
     required: false,

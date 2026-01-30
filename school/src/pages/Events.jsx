@@ -5,6 +5,20 @@ const Events = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [filter, setFilter] = useState('All Events');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredEvents = events.filter(event => {
+        const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            event.description.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        if (filter === 'All Events') return matchesSearch;
+        if (filter === 'Exams') return matchesSearch && event.title.toLowerCase().includes('exam');
+        if (filter === 'Sports') return matchesSearch && (event.title.toLowerCase().includes('sport') || event.title.toLowerCase().includes('football') || event.title.toLowerCase().includes('cricket'));
+        if (filter === 'Cultural') return matchesSearch && (event.title.toLowerCase().includes('cultural') || event.title.toLowerCase().includes('dance') || event.title.toLowerCase().includes('music') || event.title.toLowerCase().includes('art') || event.title.toLowerCase().includes('fest'));
+        
+        return matchesSearch;
+    });
 
     useEffect(() => {
         fetch('http://localhost:5000/api/events')
@@ -45,10 +59,22 @@ const Events = () => {
                         <Filter size={18} /> Filter by Category
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <span style={{ padding: '0.4rem 1.2rem', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '2rem', fontSize: '0.85rem', cursor: 'pointer' }}>All Events</span>
-                        <span style={{ padding: '0.4rem 1.2rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '2rem', fontSize: '0.85rem', cursor: 'pointer' }}>Exams</span>
-                        <span style={{ padding: '0.4rem 1.2rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '2rem', fontSize: '0.85rem', cursor: 'pointer' }}>Sports</span>
-                        <span style={{ padding: '0.4rem 1.2rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '2rem', fontSize: '0.85rem', cursor: 'pointer' }}>Cultural</span>
+                        {['All Events', 'Exams', 'Sports', 'Cultural'].map(category => (
+                            <span 
+                                key={category}
+                                onClick={() => setFilter(category)}
+                                style={{ 
+                                    padding: '0.4rem 1.2rem', 
+                                    backgroundColor: filter === category ? 'var(--primary)' : '#f1f5f9', 
+                                    color: filter === category ? 'white' : '#64748b', 
+                                    borderRadius: '2rem', 
+                                    fontSize: '0.85rem', 
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}>
+                                {category}
+                            </span>
+                        ))}
                     </div>
                 </div>
                 <div style={{ position: 'relative' }}>
@@ -56,6 +82,8 @@ const Events = () => {
                     <input 
                         type="text" 
                         placeholder="Search events..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ padding: '0.75rem 1rem 0.75rem 3rem', borderRadius: '2rem', border: '1px solid #e2e8f0', outline: 'none', width: '300px' }}
                     />
                 </div>
@@ -72,15 +100,15 @@ const Events = () => {
                     <h3 style={{ color: '#991b1b', marginBottom: '0.5rem' }}>Oops! Something went wrong</h3>
                     <p style={{ color: '#ef4444' }}>{error}</p>
                 </div>
-            ) : events.length === 0 ? (
+            ) : filteredEvents.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '8rem', backgroundColor: '#f8fafc', borderRadius: '2rem' }}>
                      <Calendar size={64} style={{ color: '#cbd5e1', marginBottom: '1.5rem' }} />
                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>No Events Found</h3>
-                    <p style={{ color: 'var(--text-muted)' }}>There are no upcoming events at the moment. Please check back later!</p>
+                    <p style={{ color: 'var(--text-muted)' }}>Try adjusting your search or filters.</p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '2.5rem' }}>
-                    {events.map(event => {
+                    {filteredEvents.map(event => {
                         const date = new Date(event.date);
                         return (
                             <div key={event.id} className="card" style={{ 

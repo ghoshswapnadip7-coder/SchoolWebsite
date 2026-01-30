@@ -65,7 +65,7 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Visit Us</h4>
-                                        <p style={{ color: 'var(--text-muted)' }}>12, Pal Chowdhury Street,<br />Ranaghat, West Bengal 741201</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>5HH6+FW8, School Lane,<br />Ranaghat, West Bengal 741201</p>
                                     </div>
                                 </div>
 
@@ -85,7 +85,7 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Call Us</h4>
-                                        <p style={{ color: 'var(--text-muted)' }}>+91 33 2456 7890<br />+91 98765 43210</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>+91 94344 19453<br />+91 0000000000</p>
                                     </div>
                                 </div>
 

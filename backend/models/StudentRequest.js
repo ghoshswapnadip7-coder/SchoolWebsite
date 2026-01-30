@@ -32,6 +32,10 @@ const StudentRequestSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    isHiddenFromStudent: {
+        type: Boolean,
+        default: false
     }
 });
 

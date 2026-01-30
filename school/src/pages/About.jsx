@@ -44,7 +44,7 @@ const About = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--secondary)', fontWeight: 600, marginBottom: '1rem' }}>
                                 <History size={20} /> OUR HISTORY
                             </div>
-                            <h2 style={{ color: 'var(--primary)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of 170+ Years</h2>
+                            <h2 style={{ color: 'var(--primary)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of 150+ Years</h2>
                             <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '1.1rem', lineHeight: 1.8 }}>
                                 What started as a vision to education by local visionaries in 1853 has now transformed into a premier educational institution. Our school has been a witness to the success stories of generations of alumni.
                             </p>

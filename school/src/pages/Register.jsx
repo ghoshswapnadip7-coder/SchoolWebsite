@@ -17,12 +17,44 @@ const Register = () => {
             pastMarksheet: '',
             birthCertificate: '',
             transferCertificate: ''
-        }
+        },
+        stream: '',
+        subjects: []
     });
     
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(false);
     const [generatedId, setGeneratedId] = useState('');
+
+    const handleFileUpload = async (file, fieldPath) => {
+        if (!file) return;
+        const data = new FormData();
+        data.append('file', file);
+        
+        // Visual indicator could be added here (e.g. setUploading(true))
+        try {
+            const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: data });
+            if (res.ok) {
+                const { url } = await res.json();
+                
+                // Update deeply nested state
+                if (fieldPath.includes('.')) {
+                    const [parent, child] = fieldPath.split('.');
+                    setFormData(prev => ({
+                        ...prev,
+                        [parent]: { ...prev[parent], [child]: url }
+                    }));
+                } else {
+                    setFormData(prev => ({ ...prev, [fieldPath]: url }));
+                }
+            } else {
+                alert('Upload failed. Please try again.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error file uploading.');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -59,8 +91,8 @@ const Register = () => {
     };
 
     return (
-        <div className="container" style={{ padding: '4rem 1rem', display: 'flex', justifyContent: 'center' }}>
-            <div className="card" style={{ maxWidth: '650px', width: '100%', padding: '3rem', position: 'relative' }}>
+        <div className="container section-padding" style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="card" style={{ maxWidth: '650px', width: '100%', padding: '2rem', position: 'relative' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                     <div style={{ 
                         width: '64px', height: '64px', borderRadius: '16px', 
@@ -126,7 +158,7 @@ const Register = () => {
                 )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.2rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="grid-responsive">
                         <div style={{ display: 'grid', gap: '0.4rem' }}>
                             <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary)' }}>Full Name</label>
                             <input required placeholder="E.g. John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
@@ -137,7 +169,7 @@ const Register = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="grid-responsive">
                         <div style={{ display: 'grid', gap: '0.4rem' }}>
                             <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary)' }}>Target Class</label>
                             <select required value={formData.className} onChange={e => setFormData({...formData, className: e.target.value})}>
@@ -149,6 +181,101 @@ const Register = () => {
                             <input required type="number" placeholder="Roll No" value={formData.rollNumber} onChange={e => setFormData({...formData, rollNumber: e.target.value})} />
                         </div>
                     </div>
+
+                    {(formData.className === 'Class-11' || formData.className === 'Class-12') && (
+                        <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            <h3 style={{ fontSize: '1rem', color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <GraduationCap size={18} /> Stream & Subject Selection
+                            </h3>
+                            
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Select Stream</label>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    {['Science', 'Arts'].map(s => (
+                                        <label key={s} style={{ 
+                                            flex: 1, 
+                                            padding: '1rem', 
+                                            border: formData.stream === s ? '2px solid var(--primary)' : '1px solid #e2e8f0',
+                                            borderRadius: '12px', 
+                                            cursor: 'pointer',
+                                            background: formData.stream === s ? 'var(--primary)' : 'white',
+                                            color: formData.stream === s ? 'white' : 'inherit',
+                                            display: 'flex', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            fontWeight: formData.stream === s ? 700 : 500,
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: formData.stream === s ? '0 4px 12px -2px rgba(15, 23, 42, 0.4)' : 'none'
+                                        }}>
+                                            <input 
+                                                type="radio" 
+                                                name="stream" 
+                                                value={s} 
+                                                checked={formData.stream === s}
+                                                onChange={() => setFormData({
+                                                    ...formData, 
+                                                    stream: s, 
+                                                    subjects: ['Bengali', 'English'] // Reset subjects when stream changes, keep compulsory
+                                                })}
+                                                style={{ display: 'none' }}
+                                            />
+                                            {formData.stream === s && <CheckCircle size={18} />}
+                                            {s}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {formData.stream && (
+                                <div>
+                                    <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Choose Elective Subjects (Max 4)</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        {/* Compulsory */}
+                                        <span style={{ padding: '0.4rem 0.8rem', background: '#e2e8f0', borderRadius: '20px', fontSize: '0.8rem', color: '#64748b', cursor: 'not-allowed' }}>Bengali (Compulsory)</span>
+                                        <span style={{ padding: '0.4rem 0.8rem', background: '#e2e8f0', borderRadius: '20px', fontSize: '0.8rem', color: '#64748b', cursor: 'not-allowed' }}>English (Compulsory)</span>
+                                        
+                                        {/* Electives */}
+                                        {(formData.stream === 'Science' 
+                                            ? ['Physics', 'Chemistry', 'Biology', 'Maths', 'COMS', 'AI']
+                                            : ['Political Science', 'History', 'Education', 'Computer Application', 'Sanskrit']
+                                        ).map(sub => (
+                                            <label key={sub} style={{ 
+                                                padding: '0.4rem 0.8rem', 
+                                                border: formData.subjects.includes(sub) ? '1px solid var(--primary)' : '1px solid #cbd5e1',
+                                                borderRadius: '20px', 
+                                                fontSize: '0.8rem', 
+                                                cursor: 'pointer',
+                                                background: formData.subjects.includes(sub) ? '#eff6ff' : 'white',
+                                                color: formData.subjects.includes(sub) ? 'var(--primary)' : '#475569',
+                                                transition: '0.2s'
+                                            }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={formData.subjects.includes(sub)}
+                                                    onChange={(e) => {
+                                                        const currentElectives = formData.subjects.filter(s => !['Bengali', 'English'].includes(s));
+                                                        if (e.target.checked) {
+                                                            if (currentElectives.length >= 4) {
+                                                                alert("You can select a maximum of 4 elective subjects.");
+                                                                return;
+                                                            }
+                                                            setFormData({...formData, subjects: [...formData.subjects, sub]});
+                                                        } else {
+                                                            setFormData({...formData, subjects: formData.subjects.filter(x => x !== sub)});
+                                                        }
+                                                    }}
+                                                    style={{ display: 'none' }}
+                                                />
+                                                {sub}
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>* Select up to 4 elective subjects (excluding compulsory).</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div style={{ display: 'grid', gap: '0.4rem' }}>
                         <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary)' }}>Choose Secret Password</label>
@@ -183,14 +310,24 @@ const Register = () => {
                                 <FileText size={18} /> Upload Documents (Images/PDF Links)
                             </h3>
                             <div style={{ display: 'grid', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gap: '1rem' }}>
                                 <div style={{ display: 'grid', gap: '0.4rem' }}>
-                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Aadhar Card URL</label>
-                                    <input required placeholder="https://image-link.com/aadhar.jpg" value={formData.documents.aadharCard} onChange={e => setFormData({...formData, documents: {...formData.documents, aadharCard: e.target.value}})} />
+                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Aadhar Card {formData.documents.aadharCard && <span style={{ color: 'green' }}>✓ Uploaded</span>}</label>
+                                    <input required={!formData.documents.aadharCard} type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], 'documents.aadharCard')} />
                                 </div>
                                 <div style={{ display: 'grid', gap: '0.4rem' }}>
-                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Past Marksheet URL</label>
-                                    <input required placeholder="https://image-link.com/marksheet.jpg" value={formData.documents.pastMarksheet} onChange={e => setFormData({...formData, documents: {...formData.documents, pastMarksheet: e.target.value}})} />
+                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Past Marksheet {formData.documents.pastMarksheet && <span style={{ color: 'green' }}>✓ Uploaded</span>}</label>
+                                    <input required={!formData.documents.pastMarksheet} type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], 'documents.pastMarksheet')} />
                                 </div>
+                                <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Birth Certificate (Optional) {formData.documents.birthCertificate && <span style={{ color: 'green' }}>✓ Uploaded</span>}</label>
+                                    <input type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], 'documents.birthCertificate')} />
+                                </div>
+                                <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                    <label style={{ fontWeight: 600, fontSize: '0.75rem' }}>Transfer Certificate (Optional) {formData.documents.transferCertificate && <span style={{ color: 'green' }}>✓ Uploaded</span>}</label>
+                                    <input type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], 'documents.transferCertificate')} />
+                                </div>
+                            </div>
                             </div>
                         </div>
                     )}

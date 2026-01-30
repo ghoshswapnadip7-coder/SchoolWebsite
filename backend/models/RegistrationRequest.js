@@ -23,6 +23,14 @@ const RegistrationRequestSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    stream: {
+        type: String, // 'Science' or 'Arts' (Only for Class 11/12)
+        required: false
+    },
+    subjects: {
+        type: [String], // List of selected subjects
+        required: false
+    },
     applicationType: {
         type: String,
         enum: ['FRESH', 'PROMOTION'],

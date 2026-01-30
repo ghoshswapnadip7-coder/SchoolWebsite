@@ -41,6 +41,18 @@ const Login = () => {
     const location = useLocation();
     const infoMessage = location.state?.message;
 
+    // Check for blocking redirect
+    React.useEffect(() => {
+        if (location.state?.blocked && location.state?.reason) {
+            setBlockReason(location.state.reason);
+            setShowBlockModal(true);
+            // Clear state so refresh doesn't keep showing it? 
+            // Better to leave it for now so they see it.
+            // But we need to use window.history to replace state if we want to clear it, 
+            // but let's keep it simple.
+        }
+    }, [location.state]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');

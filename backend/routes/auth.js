@@ -10,7 +10,7 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key-change-this-in-pro
 // Registration Application (Public)
 router.post('/apply-registration', async (req, res) => {
     try {
-        const { name, email, className, rollNumber, applicationType, previousStudentId, documents, password } = req.body;
+        const { name, email, className, rollNumber, applicationType, previousStudentId, documents, password, stream, subjects } = req.body;
         
         if (!name || !email || !className || !rollNumber || !applicationType || !password) {
             return res.status(400).json({ error: 'Core fields including password are required' });
@@ -44,6 +44,8 @@ router.post('/apply-registration', async (req, res) => {
             studentId: studentIdToUse.toUpperCase(), 
             class: className, 
             rollNumber,
+            stream,
+            subjects,
             applicationType,
             previousStudentId,
             documents: applicationType === 'FRESH' ? documents : undefined,
@@ -144,6 +146,31 @@ router.post('/login', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Check User Status (Polling)
+router.get('/me', async (req, res) => {
+    try {
+        const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+        const decoded = jwt.verify(token, SECRET_KEY);
+        const user = await User.findById(decoded.userId);
+
+        if (!user) return res.status(401).json({ error: 'User not found' });
+
+        if (user.isBlocked) {
+            return res.status(403).json({ 
+                error: 'ACCOUNT_BLOCKED', 
+                message: 'Your account has been restricted.',
+                reason: user.blockReason 
+            });
+        }
+
+        res.json({ status: 'ACTIVE', user: { id: user.id, role: user.role, name: user.name } });
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
     }
 });
 

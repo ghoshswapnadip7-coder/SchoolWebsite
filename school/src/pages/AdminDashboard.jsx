@@ -6,6 +6,7 @@ import {
     CheckCircle, XCircle, Edit3, X, Users, Table as TableIcon, Search,
     UserPlus, Clock, BookOpen, User, ClipboardList, Bell, Check,
     AlertCircle, Award, CreditCard, Lock, Unlock, Download, Printer, ChevronRight, Hash,
+
     RefreshCw, AlertTriangle
 } from 'lucide-react';
 
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
     const [studentRequests, setStudentRequests] = useState([]);
     const [payments, setPayments] = useState([]);
 
+
     // Selection/UI State
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [studentResults, setStudentResults] = useState([]);
@@ -57,11 +59,25 @@ const AdminDashboard = () => {
     const [resultForm, setResultForm] = useState({ subject: '', marks: '', grade: '', semester: 'Final Exam 2025' });
     const [editingResult, setEditingResult] = useState(null);
     const [feesForm, setFeesForm] = useState({ amount: 0, dueDate: '', isPaid: false });
+    const [studentFilterClass, setStudentFilterClass] = useState('All');
 
     // Block Modal State
     const [blockModalOpen, setBlockModalOpen] = useState(false);
     const [studentToBlock, setStudentToBlock] = useState(null);
     const [blockReason, setBlockReason] = useState('');
+
+    const handleFileUpload = async (file, setter, field) => {
+        if (!file) return;
+        const data = new FormData();
+        data.append('file', file);
+        try {
+            const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: data });
+            if (res.ok) {
+                const { url } = await res.json();
+                setter(prev => ({ ...prev, [field]: url }));
+            } else { alert('Upload failed'); }
+        } catch (err) { alert('Error uploading'); }
+    };
 
     useEffect(() => {
         if (!user || user.role !== 'ADMIN') {
@@ -90,7 +106,7 @@ const AdminDashboard = () => {
             const token = localStorage.getItem('token');
             const h = { 'Authorization': `Bearer ${token}` };
             
-            const [g, e, s, r, reg, sr, p] = await Promise.all([
+            const [g, e, s, r, reg, sr, p, f] = await Promise.all([
                 fetch('http://localhost:5000/api/gallery').then(res => res.json()),
                 fetch('http://localhost:5000/api/events').then(res => res.json()),
                 fetch('http://localhost:5000/api/admin/students', { headers: h }).then(res => res.json()),
@@ -107,6 +123,8 @@ const AdminDashboard = () => {
             setRegRequests(Array.isArray(reg) ? reg : []);
             setStudentRequests(Array.isArray(sr) ? sr : []);
             setPayments(Array.isArray(p) ? p : []);
+
+
         } catch (err) { console.error(err); }
     };
 
@@ -251,6 +269,9 @@ const AdminDashboard = () => {
     const handleDeleteGallery = async (id) => { await fetch(`http://localhost:5000/api/gallery/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }); fetchData(); };
     const handleSaveRoutine = async (e) => { e.preventDefault(); await fetch('http://localhost:5000/api/admin/routines', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify({ className: selectedClass, day: selectedDay, periods: routineForm.periods }) }); fetchData(); };
 
+
+
+
     // Helper: Registration Request Card
     const RegistrationCard = ({ r, onAccept, onReject }) => (
         <div style={{ padding: '1.5rem', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -264,6 +285,17 @@ const AdminDashboard = () => {
                     </div>
                     <p style={{ margin: '5px 0', fontSize: '0.9rem', color: '#64748b' }}>{r.email} | Target {r.class} | Roll: {r.rollNumber}</p>
                     {r.applicationType === 'PROMOTION' && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Prev ID: {r.previousStudentId}</p>}
+                    
+                    {r.stream && (
+                        <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>{r.stream} Stream • Selected Subjects</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {r.subjects?.map((sub, idx) => (
+                                    <span key={idx} style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#334155' }}>{sub}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={() => onReject(r.id)} className="btn" style={{ background: '#fee2e2', color: '#dc2626' }}>Decline Request</button>
@@ -287,15 +319,28 @@ const AdminDashboard = () => {
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2>{label}</h2>
-                <div style={{ position: 'relative', width: '250px' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                    <input placeholder="Search ID/Name..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} style={{ borderRadius: '2rem', paddingLeft: '2.5rem' }} />
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <select 
+                        value={studentFilterClass} 
+                        onChange={(e) => setStudentFilterClass(e.target.value)}
+                        style={{ padding: '0.5rem', borderRadius: '2rem', border: '1px solid #e2e8f0' }}
+                    >
+                        <option value="All">All Classes</option>
+                        {[5,6,7,8,9,10,11,12].map(n => <option key={n} value={`Class-${n}`}>Class {n}</option>)}
+                    </select>
+                    <div style={{ position: 'relative', width: '250px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                        <input placeholder="Search ID/Name..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} style={{ borderRadius: '2rem', paddingLeft: '2.5rem' }} />
+                    </div>
                 </div>
             </div>
             <table style={{ width: '100%', textAlign: 'left' }}>
                 <thead style={{ background: '#f1f5f9' }}><tr><th style={{ padding: '12px' }}>ID</th><th>Roll</th><th>Name</th><th>Class</th><th>Action</th></tr></thead>
                 <tbody>
-                    {students.filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch)).map(s => (
+                    {students
+                        .filter(s => studentFilterClass === 'All' || s.class === studentFilterClass)
+                        .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch))
+                        .map(s => (
                         <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
                             <td style={{ padding: '12px' }}>{s.studentId}</td>
                             <td>{s.rollNumber}</td>
@@ -373,9 +418,19 @@ const AdminDashboard = () => {
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                                 <h2>Student Directory</h2>
-                                <div style={{ position: 'relative', width: '250px' }}>
-                                    <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                    <input placeholder="Search ID/Name..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} style={{ borderRadius: '2rem', paddingLeft: '2.5rem' }} />
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <select 
+                                        value={studentFilterClass} 
+                                        onChange={(e) => setStudentFilterClass(e.target.value)}
+                                        style={{ padding: '0.5rem', borderRadius: '2rem', border: '1px solid #e2e8f0' }}
+                                    >
+                                        <option value="All">All Classes</option>
+                                        {[5,6,7,8,9,10,11,12].map(n => <option key={n} value={`Class-${n}`}>Class {n}</option>)}
+                                    </select>
+                                    <div style={{ position: 'relative', width: '250px' }}>
+                                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                        <input placeholder="Search ID/Name..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} style={{ borderRadius: '2rem', paddingLeft: '2.5rem' }} />
+                                    </div>
                                 </div>
                             </div>
                             <form onSubmit={handleAddStudent} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) auto', gap: '0.4rem', marginBottom: '2.5rem', alignItems: 'end', background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -386,14 +441,20 @@ const AdminDashboard = () => {
                                 <select value={newStudent.className} onChange={e => setNewStudent({...newStudent, className: e.target.value})}>
                                     {[5,6,7,8,9,10,11,12].map(n => <option key={n} value={`Class-${n}`}>Class {n}</option>)}
                                 </select>
-                                <input placeholder="Pic URL" value={newStudent.profilePic} onChange={e => setNewStudent({...newStudent, profilePic: e.target.value})} />
+                                <div style={{ position: 'relative' }}>
+                                    <input type="file" onChange={(e) => handleFileUpload(e.target.files[0], setNewStudent, 'profilePic')} style={{ fontSize: '0.7rem' }} />
+                                    {newStudent.profilePic && <span style={{ position: 'absolute', right: 0, top: 0, color: 'green' }}>✓</span>}
+                                </div>
                                 <input required type="password" placeholder="Pass" value={newStudent.password} onChange={e => setNewStudent({...newStudent, password: e.target.value})} />
                                 <button type="submit" className="btn btn-primary" style={{ height: '42px', width: '42px', padding: 0 }}><Plus size={20} /></button>
                             </form>
                             <table style={{ width: '100%', textAlign: 'left' }}>
                                 <thead style={{ background: '#f1f5f9' }}><tr><th style={{ padding: '12px' }}>ID</th><th>Roll</th><th>Name</th><th>Email</th><th>Class</th><th>Action</th></tr></thead>
                                 <tbody>
-                                    {students.filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch)).map(s => (
+                                    {students
+                                        .filter(s => studentFilterClass === 'All' || s.class === studentFilterClass)
+                                        .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch))
+                                        .map(s => (
                                         <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
                                             <td style={{ padding: '12px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -452,6 +513,31 @@ const AdminDashboard = () => {
                                         <h2>Global Financials & Payments</h2>
                                         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Select a student from the directory to set individual fees.</p>
                                     </div>
+
+                                    {/* QR Code Section */}
+                                    <div style={{ 
+                                        background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
+                                        padding: '2rem', 
+                                        borderRadius: '16px', 
+                                        marginBottom: '3rem',
+                                        color: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        boxShadow: 'var(--shadow-lg)'
+                                    }}>
+                                        <div>
+                                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.5rem' }}>School UPI Payment</h3>
+                                            <p style={{ margin: 0, opacity: 0.9, maxWidth: '400px' }}>Scan this QR code to pay fees securely via any UPI App (GPay, PhonePe, Paytm). Please use Student ID as the reference.</p>
+                                        </div>
+                                        <div style={{ background: 'white', padding: '10px', borderRadius: '12px' }}>
+                                            <img 
+                                                src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=9641360922@fam&pn=Swapnadip%20Ghosh&mc=0000&mode=02&purpose=00" 
+                                                alt="UPI QR" 
+                                                style={{ width: '120px', height: '120px' }} 
+                                            />
+                                        </div>
+                                    </div>
                                     
                                     <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
                                         <p style={{ margin: 0, fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Assign Fees to Student</p>
@@ -491,17 +577,98 @@ const AdminDashboard = () => {
                                     <h3 style={{ margin: 0 }}>Results Management: {selectedStudent.name}</h3>
                                 </div>
                                 <form onSubmit={handleResultSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) auto', gap: '0.75rem', margin: '2rem 0', padding: '1.5rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                                    <input required placeholder="Subject" value={resultForm.subject} onChange={e => setResultForm({...resultForm, subject: e.target.value})} />
-                                    <input required type="number" placeholder="Marks" value={resultForm.marks} onChange={e => setResultForm({...resultForm, marks: e.target.value})} />
-                                    <input required placeholder="Grade" value={resultForm.grade} onChange={e => setResultForm({...resultForm, grade: e.target.value})} />
+                                    {['Class-11', 'Class-12'].includes(selectedStudent.class) ? (
+                                        <select 
+                                            required 
+                                            value={resultForm.subject} 
+                                            onChange={e => setResultForm({...resultForm, subject: e.target.value})}
+                                            style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                        >
+                                            <option value="">Select Subject</option>
+                                            {[...new Set(['Bengali', 'English', ...(selectedStudent.subjects || [])])].map((s, i) => (
+                                                <option key={i} value={s}>{s}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <select 
+                                            required 
+                                            value={resultForm.subject} 
+                                            onChange={e => setResultForm({...resultForm, subject: e.target.value})}
+                                            style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                        >
+                                            <option value="">Select Subject</option>
+                                            {['Bengali', 'English', 'Mathematics', 'History', 'Geography', 'Life Science', 'Physical Science'].map(s => (
+                                                <option key={s} value={s}>{s}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    <input 
+                                        required 
+                                        type="number" 
+                                        placeholder="Marks" 
+                                        value={resultForm.marks} 
+                                        onChange={e => {
+                                            const m = parseInt(e.target.value) || 0;
+                                            let g = 'F';
+                                            if (m >= 90) g = 'AA';
+                                            else if (m >= 80) g = 'A+';
+                                            else if (m >= 60) g = 'A';
+                                            else if (m >= 50) g = 'B';
+                                            else if (m >= 40) g = 'C';
+                                            else if (m >= 30) g = 'D';
+                                            setResultForm({...resultForm, marks: e.target.value, grade: g});
+                                        }} 
+                                    />
+                                    <input 
+                                        required 
+                                        readOnly
+                                        placeholder="Grade (Auto)" 
+                                        value={resultForm.grade} 
+                                        style={{ background: '#f1f5f9', color: '#64748b' }}
+                                    />
                                     <input required placeholder="Semester" value={resultForm.semester} onChange={e => setResultForm({...resultForm, semester: e.target.value})} />
-                                    <button type="submit" className="btn btn-primary">{editingResult ? 'Update' : 'Add Entry'}</button>
+                                    <button type="submit" className="btn btn-primary">{editingResult ? 'Update Marks' : 'Add Entry'}</button>
+                                    {editingResult && (
+                                        <button 
+                                            type="button" 
+                                            className="btn" 
+                                            onClick={() => { setEditingResult(null); setResultForm({ subject: '', marks: '', grade: '', semester: 'Final Exam 2025' }); }}
+                                            style={{ background: '#e2e8f0' }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
                                 </form>
                                 <table style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
-                                    <thead style={{ background: '#f1f5f9' }}><tr><th style={{ padding: '12px' }}>Subject</th><th>Marks</th><th>Grade</th><th>Semester/Term</th></tr></thead>
+                                    <thead style={{ background: '#f1f5f9' }}><tr><th style={{ padding: '12px' }}>Subject</th><th>Marks</th><th>Grade</th><th>Semester</th><th>Action</th></tr></thead>
                                     <tbody>
-                                        {studentResults.length === 0 ? <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>No results uploaded for this student.</td></tr> : studentResults.map(r => (
-                                            <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '12px' }}>{r.subject}</td><td>{r.marks}</td><td>{r.grade}</td><td>{r.semester}</td></tr>
+                                        {studentResults.length === 0 ? <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>No results uploaded for this student.</td></tr> : studentResults.map(r => (
+                                            <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
+                                                <td style={{ padding: '12px' }}>{r.subject}</td>
+                                                <td>{r.marks}</td>
+                                                <td><span style={{ fontWeight: 700, color: r.grade === 'F' ? 'red' : 'green' }}>{r.grade}</span></td>
+                                                <td>{r.semester}</td>
+                                                <td style={{ display: 'flex', gap: '8px' }}>
+                                                    <button 
+                                                        onClick={() => { setEditingResult(r); setResultForm({ subject: r.subject, marks: r.marks, grade: r.grade, semester: r.semester }); }}
+                                                        className="btn"
+                                                        style={{ padding: '4px 8px', fontSize: '0.7rem', background: '#e0e7ff', color: '#3730a3' }}
+                                                    >
+                                                        <Edit3 size={14} /> Edit
+                                                    </button>
+                                                    <button 
+                                                        onClick={async () => {
+                                                            if(!confirm('Delete this result?')) return;
+                                                            await fetch(`http://localhost:5000/api/admin/results/${r.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+                                                            fetchStudentResults(selectedStudent.id);
+                                                        }}
+                                                        className="btn"
+                                                        style={{ padding: '4px 8px', fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b' }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
                                         ))}
                                     </tbody>
                                 </table>
@@ -695,7 +862,10 @@ const AdminDashboard = () => {
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                     <input required placeholder="Location / Venue" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} />
-                                    <input placeholder="Flyer / Image URL (optional)" value={newEvent.imageUrl} onChange={e => setNewEvent({...newEvent, imageUrl: e.target.value})} />
+                                    <div style={{ position: 'relative' }}>
+                                        <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Event Image {newEvent.imageUrl && '✓'}</label>
+                                        <input type="file" onChange={e => handleFileUpload(e.target.files[0], setNewEvent, 'imageUrl')} />
+                                    </div>
                                 </div>
                                 <textarea required placeholder="Provide event details, venue, and timing here..." rows="3" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})}></textarea>
                                 <button type="submit" className="btn btn-primary" style={{ padding: '1rem' }}>Publish Event</button>
@@ -727,7 +897,10 @@ const AdminDashboard = () => {
                                         <option value="Academics">Academics</option>
                                     </select>
                                 </div>
-                                <input required placeholder="Direct Image URL (Static assets or Unsplash)" value={newGalleryItem.imageUrl} onChange={e => setNewGalleryItem({...newGalleryItem, imageUrl: e.target.value})} />
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Upload Image {newGalleryItem.imageUrl && <span style={{ color: 'green' }}>✓ Ready</span>}</label>
+                                    <input type="file" required={!newGalleryItem.imageUrl} onChange={e => handleFileUpload(e.target.files[0], setNewGalleryItem, 'imageUrl')} />
+                                </div>
                                 <button type="submit" className="btn btn-primary" style={{ padding: '1rem' }}>Post to Gallery</button>
                             </form>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }}>
@@ -741,6 +914,8 @@ const AdminDashboard = () => {
                             </div>
                         </div>
                     )}
+
+
                 </div>
             </div>
         </div>

@@ -137,13 +137,31 @@ router.post('/requests', authenticate, async (req, res) => {
     }
 });
 
-// Get my requests
+// Get my requests (excluding deleted)
 router.get('/requests', authenticate, async (req, res) => {
     try {
-        const requests = await StudentRequest.find({ user: req.user.userId }).sort({ createdAt: -1 });
+        const requests = await StudentRequest.find({ 
+            user: req.user.userId,
+            isHiddenFromStudent: { $ne: true }
+        }).sort({ createdAt: -1 });
         res.json(requests);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch requests' });
+    }
+});
+
+// Soft delete (hide) request
+router.delete('/requests/:id', authenticate, async (req, res) => {
+    try {
+        const request = await StudentRequest.findOneAndUpdate(
+            { _id: req.params.id, user: req.user.userId },
+            { isHiddenFromStudent: true },
+            { new: true }
+        );
+        if (!request) return res.status(404).json({ error: 'Request not found' });
+        res.json({ message: 'Request removed from dashboard' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete request' });
     }
 });
 

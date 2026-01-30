@@ -33,6 +33,11 @@ app.use('/api/events', eventRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.use('/api/upload', require('./routes/upload'));
+
+// Serve Uploads
+app.use('/uploads', express.static('uploads'));
+
 app.get('/', (req, res) => {
     res.send('School Backend is Running');
 });
