@@ -6,10 +6,11 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Check if saved user exists on load (mock persistence for now or decode token)
+    // Check if saved user exists on load
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
-        if (savedUser) {
+        const token = localStorage.getItem('token');
+        if (savedUser && token) {
             setUser(JSON.parse(savedUser));
         }
         setLoading(false);
@@ -18,12 +19,13 @@ export const AuthProvider = ({ children }) => {
     const login = (userData, token) => {
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
-        // In real app, set cookie or header
+        localStorage.setItem('token', token);
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
         // Call backend logout API
         fetch('http://localhost:5000/api/auth/logout', { method: 'POST' });
     };

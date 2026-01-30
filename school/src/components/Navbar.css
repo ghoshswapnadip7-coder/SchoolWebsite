@@ -36,6 +36,11 @@
     color: var(--secondary);
 }
 
+.link.active {
+    color: var(--secondary);
+    font-weight: 700;
+}
+
 .auth {
     display: flex;
     gap: 1rem;

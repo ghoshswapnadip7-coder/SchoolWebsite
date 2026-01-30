@@ -5,12 +5,15 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Gallery from './pages/Gallery';
 import Events from './pages/Events';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import Register from './pages/Register';
+import StatusDashboard from './pages/StatusDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
-
-// Placeholders for now
-const About = () => <div className="container" style={{ padding: '4rem 1rem' }}><h1>About Page</h1></div>;
-const Contact = () => <div className="container" style={{ padding: '4rem 1rem' }}><h1>Contact Page</h1></div>;
-const Login = () => <div className="container" style={{ padding: '4rem 1rem' }}><h1>Login Page</h1></div>;
 
 function App() {
   return (
@@ -26,6 +29,18 @@ function App() {
               <Route path="/events" element={<Events />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/status" element={<StatusDashboard />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin-dashboard" element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
             </Routes>
           </main>
           <Footer />
