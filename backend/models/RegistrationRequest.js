@@ -7,8 +7,7 @@ const RegistrationRequestSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: true,
-        unique: true
+        required: true
     },
     studentId: {
         type: String,

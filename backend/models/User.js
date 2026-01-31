@@ -4,7 +4,6 @@ const UserSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
   },
   studentId: {
     type: String,
@@ -49,7 +48,7 @@ const UserSchema = new mongoose.Schema({
   },
   isFeesPaid: {
     type: Boolean,
-    default: true
+    default: false
   },
   isBlocked: {
     type: Boolean,

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { API_URL } from '../config';
 
 const AuthContext = createContext(null);
 
@@ -27,7 +28,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
         // Call backend logout API
-        fetch('http://localhost:5000/api/auth/logout', { method: 'POST' });
+        fetch(`${API_URL}/auth/logout`, { method: 'POST' });
     };
 
     return (

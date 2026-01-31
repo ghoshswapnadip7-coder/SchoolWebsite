@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -18,7 +19,7 @@ const AuthStatusManager = () => {
                 const token = localStorage.getItem('token');
                 if (!token) return;
 
-                const res = await fetch('http://localhost:5000/api/auth/me', {
+                const res = await fetch(`${API_URL}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 

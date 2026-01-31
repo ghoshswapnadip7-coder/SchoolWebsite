@@ -11,6 +11,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Register from './pages/Register';
+import Toppers from './pages/Toppers';
 import StatusDashboard from './pages/StatusDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
@@ -32,6 +33,7 @@ function AppLayout() {
           <Route path="/about" element={<About />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/toppers" element={<Toppers />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -53,14 +55,18 @@ function AppLayout() {
   );
 }
 
+import { ThemeProvider } from './context/ThemeContext';
+
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AuthStatusManager />
-        <AppLayout />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AuthStatusManager />
+          <AppLayout />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

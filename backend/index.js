@@ -9,6 +9,7 @@ const galleryRoutes = require('./routes/gallery');
 const eventRoutes = require('./routes/events');
 const studentRoutes = require('./routes/student');
 const adminRoutes = require('./routes/admin');
+const topperRoutes = require('./routes/toppers');
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: true, // Allow any origin dynamically (for local network access)
     credentials: true
 }));
 app.use(express.json());
@@ -32,6 +33,7 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/toppers', topperRoutes);
 
 app.use('/api/upload', require('./routes/upload'));
 

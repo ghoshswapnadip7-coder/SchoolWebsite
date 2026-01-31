@@ -1,6 +1,6 @@
 .footer {
-    background: var(--primary);
-    color: white;
+    background: var(--footer-bg);
+    color: var(--footer-text);
     padding: 2rem 0;
     margin-top: auto;
 }
@@ -17,10 +17,11 @@
 }
 
 .footer-link {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--footer-text);
+    opacity: 0.7;
     font-size: 0.9rem;
 }
 
 .footer-link:hover {
-    color: white;
+    opacity: 1;
 }

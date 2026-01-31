@@ -1,3 +1,4 @@
+import { API_URL } from '../config';
 import React, { useState, useEffect, useRef } from 'react';
 import useMobile from '../hooks/useMobile';
 import { useAuth } from '../context/AuthContext';
@@ -5,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     User, GraduationCap, Calendar, Clock, MapPin, LogOut, Award, BookOpen,
     ClipboardList, Bell, Plus, CheckCircle, XCircle, AlertCircle, Send,
-    CreditCard, Download, Printer, ShieldAlert, Smartphone, Banknote, ChevronRight
+    CreditCard, Download, Printer, ShieldAlert, Smartphone, Banknote, ChevronRight, FileText
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -16,10 +17,12 @@ const Dashboard = () => {
     // Data States
     const [profile, setProfile] = useState(null);
     const [results, setResults] = useState([]);
+    const [performance, setPerformance] = useState([]); // For graph
+    const [examSheets, setExamSheets] = useState([]); // Downloadable physical sheets
     const [routine, setRoutine] = useState([]);
-    const [exams, setExams] = useState([]);
-    const [myRequests, setMyRequests] = useState([]);
     const [payments, setPayments] = useState([]);
+    const [myRequests, setMyRequests] = useState([]);
+    const [exams, setExams] = useState([]);
     
     // UI States
     const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ const Dashboard = () => {
             const token = localStorage.getItem('token');
             const h = { 'Authorization': `Bearer ${token}` };
 
-            const resProfile = await fetch('http://localhost:5000/api/student/profile', { headers: h });
+            const resProfile = await fetch(`${API_URL}/student/profile`, { headers: h });
             if (resProfile.status === 403) {
                 const blockedData = await resProfile.json();
                 setError(blockedData.message || blockedData.error);
@@ -55,15 +58,19 @@ const Dashboard = () => {
             const profileData = await resProfile.json();
             setProfile(profileData);
 
-            const [resResults, resRoutine, resExams, resRequests, resPayments] = await Promise.all([
-                fetch('http://localhost:5000/api/student/results', { headers: h }).then(r => r.json()),
-                fetch(`http://localhost:5000/api/student/routine/${profileData.class || 'Class-10'}`).then(r => r.json()),
-                fetch('http://localhost:5000/api/student/exams').then(r => r.json()),
-                fetch('http://localhost:5000/api/student/requests', { headers: h }).then(r => r.json()),
-                fetch('http://localhost:5000/api/student/payments', { headers: h }).then(r => r.json())
+            const [resResults, resPerformance, resExamSheets, resRoutine, resExams, resRequests, resPayments] = await Promise.all([
+                fetch(`${API_URL}/student/results`, { headers: h }).then(r => r.json()),
+                fetch(`${API_URL}/student/performance`, { headers: h }).then(r => r.json()),
+                fetch(`${API_URL}/student/exam-sheets`, { headers: h }).then(r => r.json()),
+                fetch(`${API_URL}/student/routine/${profileData.class || 'Class-10'}`).then(r => r.json()),
+                fetch(`${API_URL}/student/exams`).then(r => r.json()),
+                fetch(`${API_URL}/student/requests`, { headers: h }).then(r => r.json()),
+                fetch(`${API_URL}/student/payments`, { headers: h }).then(r => r.json())
             ]);
 
             setResults(resResults || []);
+            setPerformance(resPerformance || []);
+            setExamSheets(resExamSheets || []);
             setRoutine(resRoutine || []);
             setExams(resExams || []);
             setMyRequests(resRequests || []);
@@ -79,7 +86,7 @@ const Dashboard = () => {
     const handleSimulatePayment = async () => {
         setSubmitting(true);
         try {
-            const res = await fetch('http://localhost:5000/api/student/pay-fees', {
+            const res = await fetch(`${API_URL}/student/pay-fees`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({ 
@@ -156,7 +163,7 @@ const Dashboard = () => {
 
         try {
             // 1. Upload Image
-            const uploadRes = await fetch('http://localhost:5000/api/upload', { 
+            const uploadRes = await fetch(`${API_URL}/upload`, { 
                 method: 'POST', 
                 body: data 
             });
@@ -165,7 +172,7 @@ const Dashboard = () => {
             const { url } = await uploadRes.json();
 
             // 2. Submit Request
-            const res = await fetch('http://localhost:5000/api/student/requests', {
+            const res = await fetch(`${API_URL}/student/requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({ 
@@ -310,7 +317,7 @@ const Dashboard = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const res = await fetch('http://localhost:5000/api/student/requests', {
+            const res = await fetch(`${API_URL}/student/requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify(requestForm)
@@ -337,26 +344,102 @@ const Dashboard = () => {
 
     const isFeesNear = profile?.feesDueDate && !profile.isFeesPaid && (new Date(profile.feesDueDate) - new Date() < 7 * 24 * 60 * 60 * 1000);
 
+    const PerformanceGraph = ({ data }) => {
+        const width = 400;
+        const height = 150;
+        const paddingY = 20;
+        const paddingX = 0;
+        const maxValue = 100;
+
+        if (!data || data.length === 0) {
+            return (
+                <div style={{ height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-hover)', borderRadius: '12px', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', margin: '1rem 0' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <BookOpen size={24} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontSize: '0.8rem' }}>Performance graph will appear after results are published.</p>
+                    </div>
+                </div>
+            );
+        }
+        
+        const chartData = data;
+        const points = chartData.map((d, i) => {
+            const x = paddingX + (i * (width - 2 * paddingX) / (chartData.length - 1 || 1));
+            const y = height - paddingY - (d.average * (height - 2 * paddingY) / maxValue);
+            return `${x},${y}`;
+        }).join(' ');
+
+        return (
+            <div style={{ padding: '1.2rem 0' }}>
+                <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
+                    {/* Grids */}
+                    {[0, 25, 50, 75, 100].map(val => {
+                        const y = height - paddingY - (val * (height - 2 * paddingY) / maxValue);
+                        return <line key={val} x1={0} y1={y} x2={width} y2={y} stroke="var(--border-color)" strokeWidth="1" strokeDasharray="4" />;
+                    })}
+                    
+                    {/* Path */}
+                    <path d={`M ${points}`} fill="none" stroke="var(--secondary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    
+                    {/* Dots & Labels */}
+                    {chartData.map((d, i) => {
+                        const x = paddingX + (i * (width - 2 * paddingX) / (chartData.length - 1 || 1));
+                        const y = height - paddingY - (d.average * (height - 2 * paddingY) / maxValue);
+                        const isStart = i === 0;
+                        const isEnd = i === chartData.length - 1;
+
+                        return (
+                            <g key={i}>
+                                <circle cx={x} cy={y} r="5" fill="var(--primary)" stroke="var(--secondary)" strokeWidth="2.5" />
+                                <text 
+                                    x={x} 
+                                    y={y - 12} 
+                                    textAnchor={isStart ? 'start' : isEnd ? 'end' : 'middle'} 
+                                    fontSize="11" 
+                                    fill="var(--secondary)" 
+                                    fontWeight="900"
+                                    style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)' }}
+                                >
+                                    {d.average}%
+                                </text>
+                                <text 
+                                    x={x} 
+                                    y={height + 15} 
+                                    textAnchor={isStart ? 'start' : isEnd ? 'end' : 'middle'} 
+                                    fontSize="9" 
+                                    fill="var(--text-muted)"
+                                    fontWeight="700"
+                                >
+                                    {d.label}
+                                </text>
+                            </g>
+                        );
+                    })}
+                </svg>
+            </div>
+        );
+    };
+
     return (
         <div className="container" style={{ padding: isMobile ? '1rem' : '3rem 1rem', paddingBottom: isMobile ? '80px' : '3rem' }}>
             {isFeesNear && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '1.2rem', borderRadius: '1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', flexDirection: isMobile ? 'column' : 'row', textAlign: isMobile ? 'center' : 'left' }}>
+                <div style={{ background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.2)', color: '#f59e0b', padding: '1.2rem', borderRadius: '1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', flexDirection: isMobile ? 'column' : 'row', textAlign: isMobile ? 'center' : 'left' }}>
                     <AlertCircle size={24} />
                     <span><strong>Fee Reminder:</strong> ₹{profile.feesAmount} due by {new Date(profile.feesDueDate).toLocaleDateString()}</span>
                 </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', backgroundColor: 'white', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '1rem', boxShadow: 'var(--shadow-md)', borderLeft: '6px solid var(--primary)', gap: isMobile ? '1.5rem' : '0' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', backgroundColor: 'var(--surface)', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '1rem', boxShadow: 'var(--shadow-md)', borderLeft: '6px solid var(--secondary)', gap: isMobile ? '1.5rem' : '0' }}>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '1.5rem', textAlign: isMobile ? 'center' : 'left' }}>
                     <div 
                         onClick={() => fileInputRef.current.click()}
                         title="Click to request profile picture change"
-                        style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #e2e8f0', transition: '0.2s', position: 'relative' }}
+                        style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: 'var(--background)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid var(--border-color)', transition: '0.2s', position: 'relative' }}
                         onMouseOver={e => e.currentTarget.style.borderColor = 'var(--primary)'}
                         onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
                     >
                         <img src={profile?.profilePic || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 0, right: 0, background: 'var(--primary)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ position: 'absolute', bottom: 0, right: 0, background: 'var(--secondary)', color: 'var(--primary)', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Plus size={12} />
                         </div>
                         <input 
@@ -368,53 +451,112 @@ const Dashboard = () => {
                         />
                     </div>
                     <div>
-                        <h1 style={{ margin: 0, fontSize: isMobile ? '1.5rem' : '1.75rem' }}>{profile?.name}</h1>
-                        <p style={{ margin: 0, color: '#64748b' }}>{profile?.studentId} | {profile?.class} | Roll: {profile?.rollNumber}</p>
+                        <h1 style={{ margin: 0, fontSize: isMobile ? '1.5rem' : '1.75rem', color: 'var(--text-main)' }}>{profile?.name}</h1>
+                        <p style={{ margin: 0, color: 'var(--text-muted)' }}>{profile?.studentId} | {profile?.class} | Roll: {profile?.rollNumber}</p>
                     </div>
                 </div>
-                <button onClick={logout} className="btn" style={{ background: '#fee2e2', color: '#dc2626', width: isMobile ? '100%' : 'auto' }}><LogOut size={18} /> Logout</button>
+                <button onClick={logout} className="btn" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', width: isMobile ? '100%' : 'auto' }}><LogOut size={18} /> Logout</button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: '2.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                     
+                    {/* Performance Graph Card */}
+                    <div className="card">
+                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}><BookOpen color="var(--primary)" /> Academic Growth</h2>
+                        <PerformanceGraph data={performance} />
+                    </div>
+
                     {/* Academic Records */}
                     <div className="card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Award color="var(--secondary)" /> Academic Records</h2>
-                            <button onClick={handlePrintResult} className="btn" style={{ background: '#f1f5f9', fontSize: '0.8rem' }}><Printer size={16} /> Print Card</button>
+                            <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}><Award color="var(--secondary)" /> Performance Excellence</h2>
+                            <button onClick={handlePrintResult} className="btn" style={{ background: 'var(--surface-hover)', color: 'var(--text-main)', fontSize: '0.8rem' }}><Printer size={16} /> Print Card</button>
                         </div>
-                        <div style={{ display: 'grid', gap: '1rem' }}>
-                            {results.map(res => (
-                                <div key={res.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '12px' }}>
-                                    <div><div style={{ fontWeight: 700 }}>{res.subject}</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>{res.semester}</div></div>
-                                    <div style={{ textAlign: 'right' }}><div style={{ fontWeight: 800 }}>{res.marks}</div><div style={{ fontSize: '0.7rem', color: 'green', fontWeight: 700 }}>{res.grade}</div></div>
+                        
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-main)' }}>Semester Breakdown</h3>
+                            <div style={{ display: 'grid', gap: '0.8rem' }}>
+                                {results.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem', background: 'var(--background)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                                        <Award size={32} style={{ opacity: 0.3, marginBottom: '10px' }} />
+                                        <p style={{ margin: 0, fontSize: '0.9rem' }}>No academic results published yet.</p>
+                                    </div>
+                                ) : results.map(res => (
+                                    <div key={res.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.8rem 1rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>{res.subject}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{res.className} • {res.semester}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}><div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{res.marks}</div><div style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: 700 }}>{res.grade}</div></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Physical Exam Sheets Section */}
+                        {examSheets.length > 0 && (
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                                <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FileText size={18} className="text-secondary" /> Physical Exam Sheets
+                                </h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    {examSheets.map(sheet => (
+                                        <a 
+                                            key={sheet.id} 
+                                            href={sheet.sheetUrl} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '12px', 
+                                                padding: '1rem', 
+                                                background: 'var(--surface-hover)', 
+                                                borderRadius: '12px', 
+                                                border: '1px solid var(--border-color)',
+                                                textDecoration: 'none',
+                                                color: 'var(--text-main)',
+                                                transition: '0.2s'
+                                            }}
+                                            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                            onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                                        >
+                                            <div style={{ background: 'var(--primary)', color: 'white', padding: '8px', borderRadius: '8px' }}>
+                                                <Download size={16} />
+                                            </div>
+                                            <div style={{ overflow: 'hidden' }}>
+                                                <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{sheet.title}</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{sheet.semester}</div>
+                                            </div>
+                                        </a>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Fees & Billing */}
                     <div className="card">
                         <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><CreditCard color="#0ea5e9" /> Fees & Payments</h2>
                         {!profile?.isFeesPaid ? (
-                            <div style={{ background: '#f0f9ff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+                            <div style={{ background: 'rgba(14, 165, 233, 0.1)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                                    <span>Pending Amount</span>
-                                    <strong style={{ fontSize: '1.5rem', color: '#0369a1' }}>₹{profile?.feesAmount}</strong>
+                                    <span style={{ color: 'var(--text-main)' }}>Pending Amount</span>
+                                    <strong style={{ fontSize: '1.5rem', color: '#0ea5e9' }}>₹{profile?.feesAmount}</strong>
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    <button onClick={() => setPaymentMethod('UPI')} style={{ background: paymentMethod === 'UPI' ? '#0ea5e9' : 'white', color: paymentMethod === 'UPI' ? 'white' : '#64748b', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: '0.2s' }}>
+                                    <button onClick={() => setPaymentMethod('UPI')} style={{ background: paymentMethod === 'UPI' ? '#0ea5e9' : 'var(--surface)', color: paymentMethod === 'UPI' ? 'white' : 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: '0.2s' }}>
                                         <Smartphone size={18} /> UPI
                                     </button>
-                                    <button onClick={() => setPaymentMethod('CASH')} style={{ background: paymentMethod === 'CASH' ? '#0ea5e9' : 'white', color: paymentMethod === 'CASH' ? 'white' : '#64748b', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: '0.2s' }}>
+                                    <button onClick={() => setPaymentMethod('CASH')} style={{ background: paymentMethod === 'CASH' ? '#0ea5e9' : 'var(--surface)', color: paymentMethod === 'CASH' ? 'white' : 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: '0.2s' }}>
                                         <Banknote size={18} /> Cash
                                     </button>
                                 </div>
 
                                 {paymentMethod === 'UPI' && (
-                                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'white', borderRadius: '10px', border: '1px dashed #0ea5e9', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'var(--surface)', borderRadius: '10px', border: '1px dashed #0ea5e9', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                                         <div>
                                             <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>School UPI ID</p>
                                             <strong style={{ fontSize: '1.1rem', color: '#0ea5e9' }}>{SCHOOL_UPI}</strong>
@@ -433,18 +575,18 @@ const Dashboard = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div style={{ padding: '1rem', background: '#f0fdf4', color: '#166534', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle size={20} /> All dues clear.</div>
+                            <div style={{ padding: '1rem', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle size={20} /> All dues clear.</div>
                         )}
 
                         <h3 style={{ fontSize: '1rem', marginTop: '2.5rem', marginBottom: '1.2rem' }}>Payment History</h3>
                         <div style={{ display: 'grid', gap: '1rem' }}>
                             {payments.map(p => (
-                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--background)' }}>
                                     <div>
                                         <div style={{ fontWeight: 700 }}>₹{p.amount} <small style={{ color: '#64748b', fontWeight: 400, marginLeft: '5px' }}>via ${p.paymentMethod || 'UPI'}</small></div>
                                         <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{new Date(p.paymentDate).toLocaleDateString()}</div>
                                     </div>
-                                    <button onClick={() => handlePrintBill(p)} className="btn" style={{ padding: '5px 10px', fontSize: '0.7rem', background: '#f1f5f9', color: 'var(--primary)', border: 'none' }}>
+                                    <button onClick={() => handlePrintBill(p)} className="btn" style={{ padding: '5px 10px', fontSize: '0.7rem', background: 'var(--surface-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>
                                         <Download size={14} style={{ marginRight: '4px' }} /> Bill
                                     </button>
                                 </div>
@@ -470,46 +612,46 @@ const Dashboard = () => {
                         ) : (
                             <div style={{ display: 'grid', gap: '0.75rem' }}>
                                 {myRequests.map(req => (
-                                    <div key={req.id} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', position: 'relative' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
-                                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{req.type}</span>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                <span style={{ fontWeight: 800, color: req.status==='APPROVED'?'green':req.status==='DECLINED'?'red':'orange' }}>{req.status}</span>
-                                                <button 
-                                                    onClick={async () => {
-                                                        if(!window.confirm('Hide this request from your dashboard?')) return;
-                                                        await fetch(`http://localhost:5000/api/student/requests/${req.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
-                                                        fetchData();
-                                                    }}
-                                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                                                    title="Remove from view"
-                                                >
-                                                    <XCircle size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div style={{ fontWeight: 600, marginTop: '5px' }}>{req.subject}</div>
-                                        {req.adminComment && (
-                                            <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'white', borderRadius: '8px', borderLeft: '3px solid #cbd5e1', fontSize: '0.8rem', fontStyle: 'italic', color: '#475569' }}>
-                                                <strong>Note:</strong> {req.adminComment}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                     <div key={req.id} style={{ padding: '1rem', background: 'var(--background)', borderRadius: '12px', position: 'relative', border: '1px solid var(--border-color)' }}>
+                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
+                                             <span style={{ fontWeight: 800, color: 'var(--secondary)' }}>{req.type}</span>
+                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                 <span style={{ fontWeight: 800, color: req.status==='APPROVED'?'#22c55e':req.status==='DECLINED'?'#ef4444':'#f59e0b' }}>{req.status}</span>
+                                                 <button 
+                                                     onClick={async () => {
+                                                         if(!window.confirm('Hide this request from your dashboard?')) return;
+                                                         await fetch(`${API_URL}/student/requests/${req.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+                                                         fetchData();
+                                                     }}
+                                                     style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                                                     title="Remove from view"
+                                                 >
+                                                     <XCircle size={14} />
+                                                 </button>
+                                             </div>
+                                         </div>
+                                         <div style={{ fontWeight: 600, marginTop: '5px', color: 'var(--text-main)' }}>{req.subject}</div>
+                                         {req.adminComment && (
+                                             <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--surface-hover)', borderRadius: '8px', borderLeft: '3px solid var(--secondary)', fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                                                 <strong style={{ color: 'var(--text-main)' }}>Note:</strong> {req.adminComment}
+                                             </div>
+                                         )}
+                                     </div>
+                                 ))}
                             </div>
                         )}
                     </div>
 
                     {/* Schedule */}
                     <div className="card">
-                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Clock color="var(--primary)" /> Class Routine</h2>
+                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}><Clock color="var(--primary)" /> Class Routine</h2>
                         {routine.map(day => (
                             <div key={day.id} style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', borderBottom: '1px solid #eee', marginBottom: '0.5rem' }}>{day.day}</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--secondary)', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem', paddingBottom: '4px' }}>{day.day}</div>
                                 {day.periods.map((p, i) => (
-                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '5px 0' }}>
-                                        <span><strong>{p.subject}</strong> <br/> <small>{p.teacher}</small></span>
-                                        <span style={{ color: '#94a3b8' }}>{p.startTime}</span>
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
+                                        <span style={{ color: 'var(--text-main)' }}><strong style={{ color: 'var(--primary)' }}>{p.subject}</strong> <br/> <small style={{ color: 'var(--text-muted)' }}>{p.teacher}</small></span>
+                                        <span style={{ color: 'var(--text-muted)' }}>{p.startTime}</span>
                                     </div>
                                 ))}
                             </div>
