@@ -83,7 +83,7 @@ router.get('/payments', authenticate, async (req, res) => {
 // Get User Results
 router.get('/results', authenticate, async (req, res) => {
     try {
-        const results = await Result.find({ user: req.user.userId });
+        const results = await Result.find({ user: req.user.userId, isPublished: true });
         res.json(results);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch results' });

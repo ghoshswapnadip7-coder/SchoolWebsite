@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useMobile from '../hooks/useMobile';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -330,21 +331,23 @@ const Dashboard = () => {
         );
     }
 
+    const isMobile = useMobile();
+
     if (loading) return <div className="spinner" style={{ marginTop: '10rem' }}></div>;
 
     const isFeesNear = profile?.feesDueDate && !profile.isFeesPaid && (new Date(profile.feesDueDate) - new Date() < 7 * 24 * 60 * 60 * 1000);
 
     return (
-        <div className="container" style={{ padding: '3rem 1rem' }}>
+        <div className="container" style={{ padding: isMobile ? '1rem' : '3rem 1rem', paddingBottom: isMobile ? '80px' : '3rem' }}>
             {isFeesNear && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '1.2rem', borderRadius: '1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '1.2rem', borderRadius: '1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', flexDirection: isMobile ? 'column' : 'row', textAlign: isMobile ? 'center' : 'left' }}>
                     <AlertCircle size={24} />
                     <span><strong>Fee Reminder:</strong> ₹{profile.feesAmount} due by {new Date(profile.feesDueDate).toLocaleDateString()}</span>
                 </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: 'var(--shadow-md)', borderLeft: '6px solid var(--primary)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', backgroundColor: 'white', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '1rem', boxShadow: 'var(--shadow-md)', borderLeft: '6px solid var(--primary)', gap: isMobile ? '1.5rem' : '0' }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '1.5rem', textAlign: isMobile ? 'center' : 'left' }}>
                     <div 
                         onClick={() => fileInputRef.current.click()}
                         title="Click to request profile picture change"
@@ -365,14 +368,14 @@ const Dashboard = () => {
                         />
                     </div>
                     <div>
-                        <h1 style={{ margin: 0, fontSize: '1.75rem' }}>{profile?.name}</h1>
+                        <h1 style={{ margin: 0, fontSize: isMobile ? '1.5rem' : '1.75rem' }}>{profile?.name}</h1>
                         <p style={{ margin: 0, color: '#64748b' }}>{profile?.studentId} | {profile?.class} | Roll: {profile?.rollNumber}</p>
                     </div>
                 </div>
-                <button onClick={logout} className="btn" style={{ background: '#fee2e2', color: '#dc2626' }}><LogOut size={18} /> Logout</button>
+                <button onClick={logout} className="btn" style={{ background: '#fee2e2', color: '#dc2626', width: isMobile ? '100%' : 'auto' }}><LogOut size={18} /> Logout</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '2.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: '2.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                     
                     {/* Academic Records */}

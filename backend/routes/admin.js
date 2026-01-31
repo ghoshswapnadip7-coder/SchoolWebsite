@@ -5,7 +5,8 @@ const Result = require('../models/Result');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const StudentRequest = require('../models/StudentRequest');
 const Payment = require('../models/Payment');
-const { sendApprovalEmail } = require('../utils/email'); // Import Email Service
+const { sendApprovalEmail, sendResultPDFEmail } = require('../utils/email'); // Import Email Service
+const { generateResultPDF } = require('../utils/pdfGenerator');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -105,7 +106,7 @@ router.post('/results', authenticateAdmin, async (req, res) => {
 router.put('/results/:id', authenticateAdmin, async (req, res) => {
     try {
         const { subject, marks, grade, semester } = req.body;
-        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, grade, semester }, { new: true });
+        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, grade, semester, isPublished: false }, { new: true });
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update result' });
@@ -119,6 +120,201 @@ router.delete('/results/:id', authenticateAdmin, async (req, res) => {
         res.json({ message: 'Result deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete result' });
+    }
+});
+
+// Publish Results (Send PDF)
+router.post('/results/publish', authenticateAdmin, async (req, res) => {
+    try {
+        const { studentId, semester } = req.body;
+        
+        // Fetch Student
+        const student = await User.findById(studentId);
+        if (!student) return res.status(404).json({ error: 'Student not found' });
+        
+        // Validation Checks
+        if (!student.email) return res.status(400).json({ error: 'Student has no email address configured.' });
+        if (student.isBlocked) return res.status(400).json({ error: 'Student account is BLOCKED.' });
+
+        // Fetch Results for that semester
+        const results = await Result.find({ user: studentId, semester: semester });
+        if (!results || results.length === 0) return res.status(404).json({ error: 'No results found for this semester' });
+
+        // Update isPublished status
+        await Result.updateMany({ user: studentId, semester: semester }, { isPublished: true });
+
+        // Generate PDF
+        const pdfBuffer = await generateResultPDF(student, results, semester);
+
+        // Send Email
+        const emailSent = await sendResultPDFEmail(student.email, student.name, semester, pdfBuffer);
+
+        if (emailSent) {
+            res.json({ message: 'Results published and PDF sent to student.' });
+        } else {
+            res.status(500).json({ error: 'Failed to send email (System Error).' });
+        }
+    } catch (error) {
+        console.error('Publish Error:', error);
+        res.status(500).json({ error: 'Failed to publish results' });
+    }
+});
+
+// Get Results Dashboard Summary (Drafts vs Published)
+router.get('/results/status-summary', authenticateAdmin, async (req, res) => {
+    try {
+        const allResults = await Result.find().populate('user', 'name studentId email isBlocked');
+        console.log('Total Results found:', allResults.length);
+        
+        const summary = {
+            totalCount: allResults.length, // Debug info
+            drafts: [],
+            published: [],
+            errors: []
+        };
+
+        const grouped = {};
+        // Group by User+Semester
+        allResults.forEach(r => {
+            const userId = r.user ? r.user._id : 'ORPHAN';
+            const key = `${userId}|${r.semester}`;
+            
+            if (!grouped[key]) {
+                grouped[key] = {
+                    student: r.user || { name: 'Unknown (Orphaned)', studentId: '???', email: '', isBlocked: false },
+                    semester: r.semester,
+                    results: [],
+                    isOrphan: !r.user
+                };
+            }
+            grouped[key].results.push(r);
+        });
+
+        // Categorize
+        Object.values(grouped).forEach(g => {
+            // Check for errors
+            const issues = [];
+            if (g.isOrphan) issues.push('Orphaned Result (No Student)');
+            else {
+                if (!g.student.email) issues.push('No Email');
+                if (g.student.isBlocked) issues.push('Blocked');
+            }
+            
+            // Determine status (Strict boolean check)
+            const allPublished = g.results.every(r => r.isPublished === true);
+
+            // If ALREADY fully published
+            if (allPublished) {
+                // If there are issues, it goes to errors
+                if (issues.length > 0) {
+                     summary.errors.push({ ...g, issues });
+                } else {
+                     summary.published.push(g);
+                }
+            } else {
+                // Drafts
+                if (issues.length > 0)  {
+                    summary.errors.push({ ...g, issues }); 
+                } else {
+                    summary.drafts.push(g);
+                }
+            }
+        });
+        
+        res.header('Cache-Control', 'no-store');
+        res.json(summary);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch summary' });
+    }
+});
+
+// Bulk Publish All Pending Results
+router.post('/results/publish-batch', authenticateAdmin, async (req, res) => {
+    try {
+        // Find all unpublished results with student details
+        const pendingResults = await Result.find({ isPublished: false }).populate('user');
+        
+        if (pendingResults.length === 0) {
+            return res.json({ report: [] });
+        }
+
+        // Group by Student ID + Semester
+        const groups = {};
+        pendingResults.forEach(r => {
+            if (!r.user) return; // Skip orphaned results
+            const key = `${r.user._id}-${r.semester}`;
+            if (!groups[key]) {
+                groups[key] = {
+                    student: r.user,
+                    semester: r.semester,
+                    results: []
+                };
+            }
+            groups[key].results.push(r);
+        });
+
+        const report = [];
+
+        for (const key in groups) {
+            const { student, semester, results } = groups[key];
+            let status = 'SUCCESS';
+            let message = 'Published and Emailed';
+            
+            // Checks
+            if (student.isBlocked) {
+                status = 'ERROR';
+                message = 'Student account is RESTRICED/BLOCKED.';
+            } else if (!student.email) {
+                status = 'ERROR';
+                message = 'No email address found for student.';
+            } else {
+                // Check fail status (simple check: any subject < 30)
+                const hasFailed = results.some(r => Number(r.marks) < 30); // Assuming 30 is pass mark
+                
+                try {
+                    // Generate PDF
+                    const pdfBuffer = await generateResultPDF(student, results, semester);
+                    
+                    // Send Email
+                    const emailSent = await sendResultPDFEmail(student.email, student.name, semester, pdfBuffer);
+                    
+                    if (!emailSent) {
+                        status = 'ERROR';
+                        message = 'Email sending failed.';
+                    } else {
+                        // Mark as published
+                        await Result.updateMany(
+                            { user: student._id, semester: semester, isPublished: false }, 
+                            { isPublished: true }
+                        );
+                        
+                        if (hasFailed) {
+                            status = 'WARNING';
+                            message = 'Published, but student has FAILED in one or more subjects.';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Batch Process Error:', err);
+                    status = 'ERROR';
+                    message = 'Internal processing error.';
+                }
+            }
+
+            report.push({
+                studentName: student.name,
+                studentId: student.studentId,
+                semester,
+                status,
+                message
+            });
+        }
+
+        res.json({ report });
+
+    } catch (error) {
+        console.error('Batch Publish Error:', error);
+        res.status(500).json({ error: 'Failed to run batch publish.' });
     }
 });
 

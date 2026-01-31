@@ -66,4 +66,41 @@ const sendApprovalEmail = async (to, name, studentId, stream, subjects) => {
     }
 };
 
-module.exports = { sendApprovalEmail };
+
+const sendResultPDFEmail = async (to, name, semester, pdfBuffer) => {
+    try {
+        const mailOptions = {
+            from: `"School Admin" <${process.env.EMAIL_USER}>`,
+            to: to,
+            subject: `Official Result Published: ${semester}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #1e40af;">Result Declaration</h2>
+                    <p>Dear <strong>${name}</strong>,</p>
+                    <p>Your result for <strong>${semester}</strong> has been officially published.</p>
+                    <p>Please find the attached PDF containing your detailed marksheet.</p>
+                    
+                    <p>You can also view this online on your dashboard.</p>
+                    
+                    <a href="http://localhost:5173/profile" style="display: inline-block; background-color: #1e40af; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login to Dashboard</a>
+                </div>
+            `,
+            attachments: [
+                {
+                    filename: `Result_${semester}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ]
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[PDF EMAIL SENT] To: ${to} | ID: ${info.messageId}`);
+        return true;
+    } catch (error) {
+        console.error('[EMAIL ERROR] Failed to send result PDF:', error);
+        return false;
+    }
+};
+
+module.exports = { sendApprovalEmail, sendResultPDFEmail };
