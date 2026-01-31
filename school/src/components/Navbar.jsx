@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { User, LogIn, Menu, X } from 'lucide-react';
+import { User, LogIn, Menu, X, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import './Navbar.css';
 
 const Navbar = () => {
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
 
     const toggleMenu = () => setIsOpen(!isOpen);
@@ -18,9 +20,11 @@ const Navbar = () => {
                     Ranaghat P.C.H(H.S).SCHOOL
                 </Link>
 
-                <button className="menu-btn" onClick={toggleMenu}>
+                <button className="menu-btn" onClick={toggleMenu} aria-label="Toggle Menu">
                     {isOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
+
+                {isOpen && <div className="nav-backdrop" onClick={closeMenu}></div>}
 
                 <div className={`nav-content ${isOpen ? 'open' : ''}`}>
                     <div className="links">
@@ -28,6 +32,7 @@ const Navbar = () => {
                         <NavLink to="/about" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="About Us">About Us</NavLink>
                         <NavLink to="/gallery" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Gallery">Gallery</NavLink>
                         <NavLink to="/events" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Events">Events</NavLink>
+                        <NavLink to="/toppers" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Toppers">Toppers</NavLink>
                         <NavLink to="/contact" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Contact">Contact</NavLink>
                         {user && (
                             <NavLink to={user.role === 'ADMIN' ? "/admin-dashboard" : "/dashboard"} className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title={user.role === 'ADMIN' ? "Admin Panel" : "Dashboard"}>
@@ -36,6 +41,14 @@ const Navbar = () => {
                         )}
                     </div>
                     <div className="nav-actions">
+                        <button 
+                            className="theme-toggle" 
+                            onClick={toggleTheme} 
+                            aria-label="Toggle Theme"
+                            title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                        >
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
                         {!user && <NavLink to="/register" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Register">Register</NavLink>}
                         {user ? (
                             <Link to={user.role === 'ADMIN' ? "/admin-dashboard" : "/dashboard"} className="btn btn-primary" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

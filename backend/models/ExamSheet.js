@@ -1,34 +1,26 @@
 const mongoose = require('mongoose');
 
-const ResultSchema = new mongoose.Schema({
+const ExamSheetSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    subject: {
+    title: {
         type: String,
+        required: true // e.g., "Mathematics Term 1"
+    },
+    sheetUrl: {
+        type: String, // Link to the uploaded image/pdf
         required: true
     },
-    marks: {
-        type: Number,
-        required: true
-    },
-    grade: {
-        type: String,
-        required: true
+    examDate: {
+        type: Date,
+        default: Date.now
     },
     semester: {
         type: String,
         required: true
-    },
-    className: {
-        type: String,
-        required: true
-    },
-    isPublished: {
-        type: Boolean,
-        default: false
     },
     createdAt: {
         type: Date,
@@ -36,14 +28,14 @@ const ResultSchema = new mongoose.Schema({
     }
 });
 
-ResultSchema.virtual('id').get(function() {
+ExamSheetSchema.virtual('id').get(function() {
     return this._id.toHexString();
 });
 
-ResultSchema.set('toJSON', {
+ExamSheetSchema.set('toJSON', {
     virtuals: true,
     versionKey: false,
     transform: function (doc, ret) { delete ret._id; }
 });
 
-module.exports = mongoose.model('Result', ResultSchema);
+module.exports = mongoose.model('ExamSheet', ExamSheetSchema);

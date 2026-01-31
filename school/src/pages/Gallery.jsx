@@ -1,3 +1,4 @@
+import { API_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { ImageIcon, Maximize2, Filter, AlertCircle, Camera } from 'lucide-react';
 
@@ -8,7 +9,7 @@ const Gallery = () => {
     const [category, setCategory] = useState('All');
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/gallery')
+        fetch(`${API_URL}/gallery`)
             .then(res => {
                 if (!res.ok) throw new Error("Failed to fetch gallery");
                 return res.json();

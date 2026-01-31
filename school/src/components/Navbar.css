@@ -1,11 +1,42 @@
 .navbar {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 1000;
-    padding: 1rem 0;
+    padding: 0.75rem 0;
+}
+
+.theme-toggle {
+    background: var(--surface-hover);
+    border: none;
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    background: var(--secondary);
+    color: var(--primary);
+}
+
+/* Add blur effect safely without breaking fixed children */
+.navbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    backdrop-filter: blur(10px);
+    z-index: -1;
 }
 
 .navbar-container {
@@ -13,14 +44,18 @@
     align-items: center;
     justify-content: space-between;
     position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
 }
 
 .logo {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: var(--primary);
     text-decoration: none;
     letter-spacing: -0.5px;
+    z-index: 1002;
 }
 
 .nav-content {
@@ -39,143 +74,135 @@
     color: var(--text-main);
     font-weight: 500;
     text-decoration: none;
-    transition: color 0.2s;
+    transition: all 0.2s;
     font-size: 0.95rem;
-    
-    /* Layout Shift Fix */
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     position: relative;
-}
-
-/* Reserves space for bold text */
-.link::after {
-    content: attr(title);
-    font-weight: 700;
-    height: 0;
-    overflow: hidden;
-    visibility: hidden;
-    user-select: none;
-    pointer-events: none;
+    padding: 0.5rem 0;
 }
 
 .link:hover, .link.active {
     color: var(--secondary);
-    font-weight: 700;
+}
+
+.link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--secondary);
+    border-radius: 2px;
 }
 
 .menu-btn {
     display: none;
-    z-index: 1002; /* Above the overlay */
+    z-index: 1002;
     background: none;
     border: none;
     cursor: pointer;
     color: var(--primary);
     padding: 0.5rem;
+    border-radius: 8px;
+    transition: background 0.2s;
 }
 
-/* Mobile App-Like Drawer Styles */
+.menu-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
 @media (max-width: 900px) {
     .menu-btn {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .nav-content {
         position: fixed;
         top: 0;
         right: 0;
-        bottom: 0;
-        width: 75%; /* Drawer width */
+        height: 100vh;
+        width: 100%;
         max-width: 300px;
-        background: white;
+        background: var(--surface);
         flex-direction: column;
-        padding: 5rem 2rem 2rem; /* Top padding for close button area */
-        gap: 2rem;
-        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+        padding: 5rem 1.5rem 2rem;
+        gap: 0;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
         z-index: 1001;
-        
-        /* Animation: Slide from Right */
         transform: translateX(100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        
-        /* Ensure content scrolling if needed */
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         overflow-y: auto;
     }
 
     .nav-content.open {
         transform: translateX(0);
     }
-    
-    /* Optional: Backdrop */
-    .nav-content::before {
-        content: '';
+
+    .nav-backdrop {
         position: fixed;
         top: 0;
-        left: -100vw; /* Extend to cover left side */
-        width: 100vw; 
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
-        z-index: -1;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        animation: fadeIn 0.3s ease;
     }
 
-    .nav-content.open::before {
-        opacity: 1;
-        pointer-events: auto;
-        /* When open, clicking this area should ideally close menu, 
-           but CSS-only click handling is tricky. 
-           In React, we handle this via state, so this visual backdrop 
-           is just for aesthetics here. Ideally the React component renders a backdrop.
-           We'll stick to simple drawer for now. 
-        */
-        left: calc(-100vw + 100%); /* Position it correctly relative to drawer */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
-    
-    /* Since pseudo-backdrop is tricky with transform, 
-       let's simpler: The nav-content is the drawer. */
 
     .links {
         flex-direction: column;
         width: 100%;
-        text-align: left; /* standard mobile menu alignment */
-        gap: 1.5rem;
-        align-items: flex-start;
-    }
-
-    .nav-actions {
-        flex-direction: column;
-        width: 100%;
-        margin-top: auto; /* Push to bottom or just below links */
-        padding-top: 1.5rem;
-        border-top: 1px solid #f1f5f9;
+        gap: 0.5rem;
         align-items: flex-start;
     }
 
     .link {
-        display: flex; /* Override inline-flex */
         width: 100%;
-        padding: 0.75rem 0;
-        font-size: 1.2rem;
-        border-bottom: 1px solid #f8fafc;
-        align-items: flex-start; /* Ensure left align for mobile */
+        padding: 1rem;
+        font-size: 1.1rem;
+        border-radius: 12px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
     }
-    
+
     .link:last-child {
         border-bottom: none;
     }
-    
-    /* Mobile: Reset pseudo element height if needed, though height:0 is fine */
-    .link::after {
-        content: none; /* Mobile doesn't struggle with horizontal shift usually, or we disable to keep simple */
+
+    .link.active {
+        background: rgba(234, 179, 8, 0.1);
+        color: var(--secondary);
     }
-    
-    /* Make buttons full width on mobile */
+
+    .link.active::after {
+        display: none;
+    }
+
+    .nav-actions {
+        width: 100%;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1.5px solid #f1f5f9;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
     .nav-actions .btn {
         width: 100%;
+        padding: 1rem;
         justify-content: center;
+        border-radius: 12px;
+        font-size: 1rem;
     }
 }

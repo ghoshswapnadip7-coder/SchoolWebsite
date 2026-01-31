@@ -44,7 +44,7 @@ const About = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--secondary)', fontWeight: 600, marginBottom: '1rem' }}>
                                 <History size={20} /> OUR HISTORY
                             </div>
-                            <h2 style={{ color: 'var(--primary)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of 150+ Years</h2>
+                            <h2 style={{ color: 'var(--text-main)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of 150+ Years</h2>
                             <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '1.1rem', lineHeight: 1.8 }}>
                                 What started as a vision to education by local visionaries in 1853 has now transformed into a premier educational institution. Our school has been a witness to the success stories of generations of alumni.
                             </p>
@@ -56,22 +56,22 @@ const About = () => {
                 </div>
             </section>
 
-            <section style={{ padding: '8rem 0', backgroundColor: '#f8fafc' }}>
+            <section style={{ padding: '8rem 0', backgroundColor: 'var(--surface-hover)' }}>
                 <div className="container" style={{ textAlign: 'center' }}>
                     <div style={{ color: 'var(--secondary)', fontWeight: 600, marginBottom: '1rem', letterSpacing: '2px' }}>CORE PILLARS</div>
-                    <h2 style={{ fontSize: '3rem', marginBottom: '5rem', color: 'var(--primary)' }}>Vision, Mission & Values</h2>
+                    <h2 style={{ fontSize: '3rem', marginBottom: '5rem', color: 'var(--text-main)' }}>Vision, Mission & Values</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '3rem' }}>
                         <div className="card" style={{ textAlign: 'center', padding: '4rem 2.5rem', borderTop: '6px solid var(--primary)' }}>
                             <div style={{ 
                                 width: '80px', 
                                 height: '80px', 
                                 borderRadius: '50%', 
-                                backgroundColor: '#f1f5f9', 
+                                backgroundColor: 'var(--background)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
                                 margin: '0 auto 2rem',
-                                color: 'var(--primary)'
+                                color: 'var(--text-main)'
                             }}>
                                 <Target size={40} />
                             </div>
@@ -85,7 +85,7 @@ const About = () => {
                                 width: '80px', 
                                 height: '80px', 
                                 borderRadius: '50%', 
-                                backgroundColor: '#fffbeb', 
+                                backgroundColor: 'rgba(234, 179, 8, 0.1)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
@@ -104,12 +104,12 @@ const About = () => {
                                 width: '80px', 
                                 height: '80px', 
                                 borderRadius: '50%', 
-                                backgroundColor: '#f1f5f9', 
+                                backgroundColor: 'var(--background)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
                                 margin: '0 auto 2rem',
-                                color: 'var(--primary)'
+                                color: 'var(--text-main)'
                             }}>
                                 <ShieldCheck size={40} />
                             </div>
@@ -124,16 +124,17 @@ const About = () => {
 
             <section style={{ padding: '8rem 0', textAlign: 'center' }}>
                 <div className="container">
-                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', color: 'var(--primary)' }}>Leadership</h2>
-                    <div style={{ 
-                        maxWidth: '900px', 
-                        margin: '0 auto', 
-                        padding: '4rem',
-                        backgroundColor: 'white',
-                        borderRadius: '2rem',
-                        boxShadow: 'var(--shadow-lg)',
-                        position: 'relative'
-                    }}>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', color: 'var(--text-main)' }}>Leadership</h2>
+                        <div style={{ 
+                            maxWidth: '900px', 
+                            margin: '0 auto', 
+                            padding: '4rem',
+                            backgroundColor: 'var(--surface)',
+                            borderRadius: '2rem',
+                            boxShadow: 'var(--shadow-lg)',
+                            position: 'relative',
+                            border: '1px solid var(--border-color)'
+                        }}>
                         <div style={{ 
                             position: 'absolute', 
                             top: '-30px', 
@@ -149,11 +150,11 @@ const About = () => {
                             color: 'white',
                             fontSize: '2rem'
                          }}>“</div>
-                        <p style={{ fontSize: '1.5rem', color: 'var(--primary)', marginBottom: '2.5rem', fontStyle: 'italic', lineHeight: 1.6 }}>
+                        <p style={{ fontSize: '1.5rem', color: 'var(--text-main)', marginBottom: '2.5rem', fontStyle: 'italic', lineHeight: 1.6 }}>
                             "We don't just teach subjects; we inspire young minds to question the world and create their own paths. Our goal is excellence in every sphere of life."
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.25rem' }}>Mr. Susmit Narayan Kundu</div>
+                            <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '1.25rem' }}>Mr. Susmit Narayan Kundu</div>
                             <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>HEADMASTER, Ranaghat P.C.H(H.S).SCHOOL</div>
                         </div>
                     </div>

@@ -49,10 +49,10 @@ const StatusDashboard = () => {
                             <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Application: {request.studentId}</p>
                         </div>
                     </div>
-                    <button onClick={() => navigate('/login')} className="btn" style={{ background: '#f1f5f9', color: '#64748b' }}><LogOut size={16} /> Logout</button>
+                    <button onClick={() => navigate('/login')} className="btn" style={{ background: 'var(--surface-hover)', color: '#64748b' }}><LogOut size={16} /> Logout</button>
                 </div>
 
-                <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '2.5rem' }}>
+                <div style={{ background: 'var(--background)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '2.5rem' }}>
                     <h3 style={{ marginTop: 0, fontSize: '1rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Current Status</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: getStatusColor(), margin: '10px 0' }}>
                         {request.status} 
@@ -69,11 +69,11 @@ const StatusDashboard = () => {
                 <div style={{ display: 'grid', gap: '1.5rem' }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>Admission Details</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div style={{ padding: '1rem', background: 'white', border: '1px solid #eee', borderRadius: '10px' }}>
+                        <div style={{ padding: '1rem', background: 'var(--surface)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                             <small style={{ color: '#94a3b8', display: 'block' }}>Student Name</small>
                             <strong>{request.name}</strong>
                         </div>
-                        <div style={{ padding: '1rem', background: 'white', border: '1px solid #eee', borderRadius: '10px' }}>
+                        <div style={{ padding: '1rem', background: 'var(--surface)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                             <small style={{ color: '#94a3b8', display: 'block' }}>Target Class</small>
                             <strong>{request.class} (Roll: {request.rollNumber})</strong>
                         </div>
@@ -85,8 +85,8 @@ const StatusDashboard = () => {
                                 <FileText size={18} color="var(--primary)" /> Verified Documents
                             </h4>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <a href={request.documents.aadharCard} target="_blank" rel="noreferrer" style={{ padding: '0.8rem', background: '#f1f5f9', borderRadius: '8px', fontSize: '0.85rem', textDecoration: 'none', color: 'var(--primary)', fontWeight: 600, border: '1px solid #e2e8f0', textAlign: 'center' }}>View Aadhar</a>
-                                <a href={request.documents.pastMarksheet} target="_blank" rel="noreferrer" style={{ padding: '0.8rem', background: '#f1f5f9', borderRadius: '8px', fontSize: '0.85rem', textDecoration: 'none', color: 'var(--primary)', fontWeight: 600, border: '1px solid #e2e8f0', textAlign: 'center' }}>View Marksheet</a>
+                                <a href={request.documents.aadharCard} target="_blank" rel="noreferrer" style={{ padding: '0.8rem', background: 'var(--surface-hover)', borderRadius: '8px', fontSize: '0.85rem', textDecoration: 'none', color: 'var(--primary)', fontWeight: 600, border: '1px solid var(--border-color)', textAlign: 'center' }}>View Aadhar</a>
+                                <a href={request.documents.pastMarksheet} target="_blank" rel="noreferrer" style={{ padding: '0.8rem', background: 'var(--surface-hover)', borderRadius: '8px', fontSize: '0.85rem', textDecoration: 'none', color: 'var(--primary)', fontWeight: 600, border: '1px solid var(--border-color)', textAlign: 'center' }}>View Marksheet</a>
                             </div>
                         </div>
                     )}

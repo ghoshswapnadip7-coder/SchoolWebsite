@@ -1,9 +1,12 @@
 const express = require('express');
 const User = require('../models/User');
 const Routine = require('../models/Routine');
+const ExamSheet = require('../models/ExamSheet');
+const Topper = require('../models/Topper');
 const Result = require('../models/Result');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const StudentRequest = require('../models/StudentRequest');
+const AdmissionSetting = require('../models/AdmissionSetting');
 const Payment = require('../models/Payment');
 const { sendApprovalEmail, sendResultPDFEmail } = require('../utils/email'); // Import Email Service
 const { generateResultPDF } = require('../utils/pdfGenerator');
@@ -45,10 +48,18 @@ router.get('/students', authenticateAdmin, async (req, res) => {
 // Add new student
 router.post('/students', authenticateAdmin, async (req, res) => {
     try {
-        const { name, email, password, studentId, className, rollNumber } = req.body;
+        let { name, email, password, studentId, className, rollNumber } = req.body;
         
-        const existing = await User.findOne({ $or: [{ email }, { studentId }] });
-        if (existing) return res.status(400).json({ error: 'Email or Student ID already exists' });
+        // Ensure studentId is unique
+        if (studentId) {
+            const existing = await User.findOne({ studentId });
+            if (existing) return res.status(400).json({ error: 'Student ID already exists' });
+        } else {
+            // Auto-generate if not provided
+            const totalStudents = await User.countDocuments({ role: 'STUDENT' });
+            const totalReqs = await RegistrationRequest.countDocuments();
+            studentId = `RPHS${new Date().getFullYear()}${String(totalStudents + totalReqs + 101).padStart(4, '0')}`;
+        }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const student = await User.create({
@@ -94,8 +105,8 @@ router.get('/results/:studentId', authenticateAdmin, async (req, res) => {
 // Add new result
 router.post('/results', authenticateAdmin, async (req, res) => {
     try {
-        const { userId, subject, marks, grade, semester } = req.body;
-        const result = await Result.create({ user: userId, subject, marks, grade, semester });
+        const { userId, subject, marks, grade, semester, className } = req.body;
+        const result = await Result.create({ user: userId, subject, marks, grade, semester, className });
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add result' });
@@ -105,8 +116,8 @@ router.post('/results', authenticateAdmin, async (req, res) => {
 // Update result
 router.put('/results/:id', authenticateAdmin, async (req, res) => {
     try {
-        const { subject, marks, grade, semester } = req.body;
-        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, grade, semester, isPublished: false }, { new: true });
+        const { subject, marks, grade, semester, className } = req.body;
+        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, grade, semester, className, isPublished: false }, { new: true });
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update result' });
@@ -337,8 +348,8 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
         const request = await RegistrationRequest.findById(id);
         if (!request) return res.status(404).json({ error: 'Request not found' });
 
-        // Check if user already exists
-        const existing = await User.findOne({ email: request.email });
+        // Check if student ID already exists
+        const existing = await User.findOne({ studentId: request.studentId });
         
         if (!existing) {
             // High security: ensure we have a password (fallback for older requests)
@@ -350,6 +361,10 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 ? Number(lastStudentInClass.rollNumber) + 1 
                 : 1;
 
+            // Get admission expiry date for fee due date
+            const admissionSettings = await AdmissionSetting.findOne();
+            const automaticDueDate = admissionSettings?.expiryDate || new Date(new Date().getFullYear(), 11, 31);
+
             // Create the student account
             await User.create({
                 name: request.name,
@@ -360,7 +375,8 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 rollNumber: neRoll, // Assign calculated roll
                 stream: request.stream,
                 subjects: request.subjects,
-                role: 'STUDENT'
+                role: 'STUDENT',
+                feesDueDate: automaticDueDate // Auto-set from admission expiry
             });
             
             // Send Approval Email
@@ -480,20 +496,73 @@ router.delete('/routines/:id', authenticateAdmin, async (req, res) => {
     }
 });
 
+// --- Admission Settings ---
+
+// Get current admission settings
+router.get('/admission-settings', authenticateAdmin, async (req, res) => {
+    try {
+        let settings = await AdmissionSetting.findOne();
+        if (!settings) {
+            settings = await AdmissionSetting.create({ 
+                isOpen: false, 
+                expiryDate: new Date(new Date().getFullYear(), 11, 31) 
+            });
+        }
+        res.json(settings);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Update admission settings
+router.put('/admission-settings', authenticateAdmin, async (req, res) => {
+    try {
+        const { isOpen, expiryDate, allowedClasses } = req.body;
+        const settings = await AdmissionSetting.findOneAndUpdate(
+            {}, 
+            { isOpen, expiryDate, allowedClasses, updatedAt: new Date() },
+            { upsert: true, new: true }
+        );
+        res.json(settings);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
 // --- Fee & Subscription Management ---
 
 // Update student fees info
 router.put('/students/:id/fees', authenticateAdmin, async (req, res) => {
     try {
-        const { feesAmount, feesDueDate, isFeesPaid } = req.body;
+        const { feesAmount, feesDueDate, isFeesPaid, paymentDate } = req.body;
+        
+        // Find existing student to check if we're marking them as paid
+        const currentStudent = await User.findById(req.params.id);
+        if (!currentStudent) return res.status(404).json({ error: 'Student not found' });
+
+        // If newly marking as paid, record a manual transaction entry for history
+        if (!currentStudent.isFeesPaid && isFeesPaid) {
+            await Payment.create({
+                user: req.params.id,
+                amount: feesAmount || currentStudent.feesAmount || 0,
+                transactionId: 'MANUAL-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                semester: 'Manual Fee Entry',
+                paymentMethod: 'CASH',
+                status: 'COMPLETED',
+                paymentDate: paymentDate || new Date()
+            });
+        }
+
         const student = await User.findByIdAndUpdate(req.params.id, { 
             feesAmount, 
             feesDueDate, 
             isFeesPaid 
         }, { new: true });
+        
         res.json(student);
     } catch (error) {
-        res.status(500).json({ error: 'Failed' });
+        console.error('Fees Update Error:', error);
+        res.status(500).json({ error: 'Failed to update fees' });
     }
 });
 
@@ -540,6 +609,88 @@ router.put('/students/:id/profile-pic', authenticateAdmin, async (req, res) => {
         res.json({ message: 'Profile picture updated successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update profile picture' });
+    }
+});
+
+
+// --- TOPPERS GALLERY MANAGEMENT ---
+
+// Get all toppers
+router.get('/toppers', authenticateAdmin, async (req, res) => {
+    try {
+        const toppers = await Topper.find().sort({ year: -1, class: 1 });
+        res.json(toppers);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch toppers' });
+    }
+});
+
+// Add a topper
+router.post('/toppers', authenticateAdmin, async (req, res) => {
+    try {
+        const topper = await Topper.create(req.body);
+        res.status(201).json(topper);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create topper' });
+    }
+});
+
+// Delete a topper
+router.delete('/toppers/:id', authenticateAdmin, async (req, res) => {
+    try {
+        await Topper.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Topper deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// --- EXAM SHEET MANAGEMENT (Per Student) ---
+
+// Upload/Add Exam Sheet link
+router.post('/students/:userId/exam-sheets', authenticateAdmin, async (req, res) => {
+    try {
+        const { title, sheetUrl, semester, examDate } = req.body;
+        const sheet = await ExamSheet.create({
+            user: req.params.userId,
+            title,
+            sheetUrl,
+            semester,
+            examDate
+        });
+        res.status(201).json(sheet);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to upload sheet' });
+    }
+});
+
+// Get sheets for a specific student
+router.get('/students/:userId/exam-sheets', authenticateAdmin, async (req, res) => {
+    try {
+        const sheets = await ExamSheet.find({ user: req.params.userId }).sort({ createdAt: -1 });
+        res.json(sheets);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Delete an exam sheet
+router.delete('/exam-sheets/:id', authenticateAdmin, async (req, res) => {
+    try {
+        await ExamSheet.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Exam sheet deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Get all exam sheets across all students
+router.get('/exam-sheets', authenticateAdmin, async (req, res) => {
+    try {
+        const sheets = await ExamSheet.find().populate('user', 'name studentId').sort({ createdAt: -1 });
+        res.json(sheets);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
     }
 });
 

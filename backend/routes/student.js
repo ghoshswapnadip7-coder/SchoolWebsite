@@ -3,6 +3,7 @@ const Result = require('../models/Result');
 const Routine = require('../models/Routine');
 const Event = require('../models/Event');
 const StudentRequest = require('../models/StudentRequest');
+const ExamSheet = require('../models/ExamSheet');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/User');
@@ -150,18 +151,49 @@ router.get('/requests', authenticate, async (req, res) => {
     }
 });
 
-// Soft delete (hide) request
-router.delete('/requests/:id', authenticate, async (req, res) => {
+
+// --- PERFORMANCE & EXAM SHEETS ---
+
+// Get personal exam sheets
+router.get('/exam-sheets', authenticate, async (req, res) => {
     try {
-        const request = await StudentRequest.findOneAndUpdate(
-            { _id: req.params.id, user: req.user.userId },
-            { isHiddenFromStudent: true },
-            { new: true }
-        );
-        if (!request) return res.status(404).json({ error: 'Request not found' });
-        res.json({ message: 'Request removed from dashboard' });
+        const sheets = await ExamSheet.find({ user: req.user.userId }).sort({ examDate: -1 });
+        res.json(sheets);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to delete request' });
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Get performance data (Results grouped by semester for graph)
+router.get('/performance', authenticate, async (req, res) => {
+    try {
+        const results = await Result.find({ user: req.user.userId, isPublished: true });
+        
+        // Group by className and semester and calculate average or total
+        const performance = results.reduce((acc, curr) => {
+            const key = `${curr.className} - ${curr.semester}`;
+            if (!acc[key]) acc[key] = { total: 0, count: 0, subjects: [], className: curr.className, semester: curr.semester };
+            acc[key].total += curr.marks;
+            acc[key].count += 1;
+            acc[key].subjects.push({ name: curr.subject, marks: curr.marks });
+            return acc;
+        }, {});
+
+        // Convert to array and format for chart
+        const chartData = Object.values(performance).map(data => ({
+            label: `${data.className} ${data.semester.split(' ')[0]}`,
+            average: Math.round(data.total / data.count),
+            total: data.total,
+            className: data.className,
+            semester: data.semester
+        })).sort((a, b) => {
+            // Sort by class then semester (basic string sort for now)
+            return a.label.localeCompare(b.label);
+        });
+
+        res.json(chartData);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
     }
 });
 

@@ -1,3 +1,4 @@
+import { API_URL } from '../config';
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -46,10 +47,6 @@ const Login = () => {
         if (location.state?.blocked && location.state?.reason) {
             setBlockReason(location.state.reason);
             setShowBlockModal(true);
-            // Clear state so refresh doesn't keep showing it? 
-            // Better to leave it for now so they see it.
-            // But we need to use window.history to replace state if we want to clear it, 
-            // but let's keep it simple.
         }
     }, [location.state]);
 
@@ -59,7 +56,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
+            const res = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -136,11 +133,11 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '1.25rem' }}>
-                        <label>Email Address</label>
+                        <label>Email or Student ID</label>
                         <input 
-                            type="email" 
+                            type="text" 
                             required 
-                            placeholder="you@example.com"
+                            placeholder="Student ID or Email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />

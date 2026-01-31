@@ -1,194 +1,149 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { API_URL } from '../config';
+import React, { useEffect, useState } from 'react';
 import { 
-    GraduationCap, 
-    Award, 
-    Clock, 
-    Users, 
-    BookOpen, 
-    Globe, 
-    ArrowRight,
-    FlaskConical,
-    Trophy,
-    Monitor
+    BookOpen, Users, Trophy, Target, ArrowRight, Star,
+    CheckCircle2, Globe, GraduationCap, Calendar, Clock
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
-    return (
-        <div className="main">
-            <section className="hero" style={{
-                background: 'linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)), url("https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=1200")',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                color: 'white',
-                paddingTop: '10rem',
-                paddingBottom: '10rem',
-                textAlign: 'center'
-            }}>
-                <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem' }}>
-                    <div style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        backgroundColor: 'rgba(234, 179, 8, 0.2)', 
-                        color: 'var(--secondary)', 
-                        padding: '0.5rem 1.25rem', 
-                        borderRadius: '2rem',
-                        fontWeight: 600,
-                        fontSize: '0.9rem',
-                        border: '1px solid rgba(234, 179, 8, 0.3)'
-                    }}>
-                        <GraduationCap size={18} /> Established 1853
-                    </div>
-                    <h1 className="hero-title" style={{ maxWidth: '1000px' }}>Shaping Minds, <span style={{ color: 'var(--secondary)' }}>Building Futures</span></h1>
-                    <p className="hero-text">
-                        Welcome to Ranaghat Pal Chowdhury High (H.S.) School, a legacy of academic excellence and character building in the heart of our community.
-                    </p>
-                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', justifyItems: 'center', justifyContent: 'center' }}>
-                        <Link to="/contact" className="btn btn-secondary" style={{ padding: '1.25rem 2.5rem', fontSize: '1.1rem' }}>
-                            Apply for Admission <ArrowRight size={20} style={{ marginLeft: '0.5rem' }} />
-                        </Link>
-                        <Link to="/about" className="btn" style={{ 
-                            padding: '1.25rem 2.5rem', 
-                            border: '2px solid white', 
-                            color: 'white',
-                            fontSize: '1.1rem' 
-                        }}>Our Legacy</Link>
-                    </div>
-                </div>
-            </section>
+    const [stats, setStats] = useState({ students: 0, teachers: 0, alumni: 0 });
 
-            {/* Statistics Section */}
-            <section style={{ padding: '0', marginTop: '-5rem', position: 'relative', zIndex: 10 }}>
-                <div className="container">
-                    <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', /* Reduced min-width to prevent wrapping */
-                        gap: '2rem', /* Slightly tighter gap to ensure fit */
-                        padding: '1rem'
-                    }}>
-                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem', borderBottom: '4px solid var(--secondary)' }}>
-                            <Users size={48} style={{ color: 'var(--primary)', marginBottom: '1.5rem' }} />
-                            <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem' }}>2500+</div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1.5px' }}>Active Students</div>
+    useEffect(() => {
+        // Mock stats or fetch from API
+        setStats({ students: 1500, teachers: 85, alumni: 5000 });
+    }, []);
+
+    return (
+        <div style={{ background: 'var(--background)' }}>
+            {/* Hero Section */}
+            <section style={{ 
+                minHeight: '90vh', 
+                display: 'flex', 
+                alignItems: 'center', 
+                background: 'linear-gradient(135deg, var(--footer-bg) 0%, #171d29 100%)',
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+                padding: '4rem 1rem'
+            }}>
+                {/* Decorative Elements */}
+                <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '500px', height: '500px', background: 'rgba(234, 179, 8, 0.15)', borderRadius: '50%', filter: 'blur(100px)' }}></div>
+                <div style={{ position: 'absolute', bottom: '-10%', left: '-5%', width: '400px', height: '400px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', filter: 'blur(80px)' }}></div>
+
+                <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '4rem', alignItems: 'center' }}>
+                        <div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--secondary)', padding: '0.5rem 1rem', borderRadius: '2rem', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                                <Star size={16} fill="var(--secondary)" /> EXCELLENCE IN EDUCATION SINCE 1853
+                            </div>
+                            <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: '1.5rem', color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+                                Shaping Minds, <span style={{ color: 'var(--secondary)' }}>Building Futures</span>
+                            </h1>
+                            <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: '600px' }}>
+                                Join one of the oldest and most prestigious educational institutions in West Bengal. Providing quality education for over 170 years.
+                            </p>
+                            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                                <Link to="/register" className="btn btn-secondary" style={{ padding: '1rem 2.5rem', fontSize: '1.1rem' }}>Admission 2025-26</Link>
+                                <Link to="/contact" className="btn" style={{ padding: '1rem 2rem', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>Contact Us <ArrowRight size={18} /></Link>
+                            </div>
                         </div>
-                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem', borderBottom: '4px solid var(--secondary)' }}>
-                            <Award size={48} style={{ color: 'var(--primary)', marginBottom: '1.5rem' }} />
-                            <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem' }}>120+</div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1.5px' }}>Excellence Awards</div>
-                        </div>
-                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem', borderBottom: '4px solid var(--secondary)' }}>
-                            <Clock size={48} style={{ color: 'var(--primary)', marginBottom: '1.5rem' }} />
-                            <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem' }}>150+</div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1.5px' }}>Years of Legacy</div>
-                        </div>
-                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem', borderBottom: '4px solid var(--secondary)' }}>
-                            <BookOpen size={48} style={{ color: 'var(--primary)', marginBottom: '1.5rem' }} />
-                            <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem' }}>98%</div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1.5px' }}>Final Results</div>
+                        <div style={{ display: 'none', lg: 'block' }}>
+                            <div style={{ position: 'relative', borderRadius: '2rem', overflow: 'hidden', boxShadow: '20px 20px 60px rgba(0,0,0,0.3)' }}>
+                                <img src="https://images.unsplash.com/photo-1523050853063-91a51e0672a2?auto=format&fit=crop&q=80&w=800" alt="School Campus" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                                <div style={{ position: 'absolute', bottom: '2rem', left: '2rem', right: '2rem', background: 'rgba(15, 23, 42, 0.8)', padding: '1.5rem', borderRadius: '1.5rem', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <div style={{ display: 'flex', gap: '1.5rem' }}>
+                                        <div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--secondary)' }}>170+</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Years Legacy</div>
+                                        </div>
+                                        <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                                        <div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--secondary)' }}>5k+</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Happy Alumni</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* Features Section */}
-            <section style={{ paddingTop: '3rem', paddingBottom: '8rem' }}>
+            <section style={{ padding: '8rem 1rem' }}>
                 <div className="container">
-                    <div style={{ textAlign: 'center', marginBottom: '6rem' }}>
-                        <h2 style={{ fontSize: '2.5rem', color: 'var(--primary)', marginBottom: '2.5rem' }}>Why Ranaghat Pal Chowdhury High (H.S.) School?</h2>
-                        <p style={{ color: 'var(--text-muted)', maxWidth: '800px', margin: '0 auto', fontSize: '1.2rem', lineHeight: '2' }}>
-                            We provide a nurturing environment that encourages students to explore their passions, challenge their limits, and grow into competent global citizens.
-                        </p>
+                    <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: 'var(--text-main)' }}>Why Choose Ranaghat P.C.H.S?</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Combining traditional values with modern learning methodologies.</p>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem' }}>
-                        <div className="card" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div style={{ 
-                                width: '70px', 
-                                height: '70px', 
-                                borderRadius: '1.2rem', 
-                                backgroundColor: '#f1f5f9', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                color: 'var(--primary)'
-                             }}>
-                                <FlaskConical size={36} />
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
+                        {[
+                            { icon: BookOpen, title: "Modern Curriculum", desc: "Digital classrooms with the latest teaching aids and a focus on holistic development.", color: "var(--secondary)" },
+                            { icon: Trophy, title: "Sports Excellence", desc: "Large playgrouds for cricket, football and other indoor sports facilities.", color: "#eab308" },
+                            { icon: Target, title: "Skill Development", desc: "Dedicated vocational training centers and laboratories for hands-on learning.", color: "#22c55e" },
+                            { icon: Globe, title: "Digital Literacy", desc: "Advanced computer labs and coding workshops to prepare for the future.", color: "#ef4444" }
+                        ].map((feature, idx) => (
+                            <div key={idx} className="card" style={{ transition: 'all 0.3s ease' }}>
+                                <div style={{ width: '60px', height: '60px', borderRadius: '1rem', background: idx === 0 ? 'rgba(234,179,8,0.1)' : `${feature.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', color: feature.color }}>
+                                    <feature.icon size={30} />
+                                </div>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-main)' }}>{feature.title}</h3>
+                                <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{feature.desc}</p>
                             </div>
-                            <h3 style={{ color: 'var(--primary)', fontSize: '1.75rem' }}>S.T.E.M Excellence</h3>
-                            <p style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.05rem' }}>
-                                State-of-the-art laboratories for Science, Technology, and Mathematics to foster a hands-on learning culture.
-                            </p>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Core Values */}
+            <section style={{ padding: '8rem 1rem', background: 'var(--surface-hover)' }}>
+                <div className="container">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '6rem', alignItems: 'center' }}>
+                        <div style={{ position: 'relative' }}>
+                            <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=800" alt="Students" style={{ width: '100%', borderRadius: '2rem', boxShadow: 'var(--shadow-lg)' }} />
+                            <div style={{ position: 'absolute', top: '-1.5rem', left: '-1.5rem', background: 'var(--secondary)', color: 'var(--primary)', padding: '2rem', borderRadius: '1.5rem', fontWeight: 800, boxShadow: 'var(--shadow-md)' }}>
+                                <div style={{ fontSize: '2.5rem' }}>A+</div>
+                                <div style={{ fontSize: '0.8rem' }}>Grade Rating</div>
+                            </div>
                         </div>
-                        <div className="card" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div style={{ 
-                                width: '70px', 
-                                height: '70px', 
-                                borderRadius: '1.2rem', 
-                                backgroundColor: '#f1f5f9', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                color: 'var(--primary)'
-                             }}>
-                                <Trophy size={36} />
+                        <div>
+                            <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem', color: 'var(--text-main)' }}>Our Vision for Future Generation</h2>
+                            <div style={{ display: 'grid', gap: '1.5rem' }}>
+                                {[
+                                    { title: "Academic Rigor", desc: "Challenging students to reach their full potential." },
+                                    { title: "Character Building", desc: "Instilling values of integrity and empathy." },
+                                    { title: "Innovation", desc: "Encouraging creative thinking and problem solving." }
+                                ].map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', gap: '1.5rem' }}>
+                                        <div style={{ flexShrink: 0 }}><CheckCircle2 color="var(--secondary)" size={24} /></div>
+                                        <div>
+                                            <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem', color: 'var(--text-main)' }}>{item.title}</h4>
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{item.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <h3 style={{ color: 'var(--primary)', fontSize: '1.75rem' }}>Holistic Growth</h3>
-                            <p style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.05rem' }}>
-                                Comprehensive sports programs and creative arts curriculum to ensure overall physical and mental development.
-                            </p>
-                        </div>
-                        <div className="card" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div style={{ 
-                                width: '70px', 
-                                height: '70px', 
-                                borderRadius: '1.2rem', 
-                                backgroundColor: '#f1f5f9', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                color: 'var(--primary)'
-                             }}>
-                                <Monitor size={36} />
-                            </div>
-                            <h3 style={{ color: 'var(--primary)', fontSize: '1.75rem' }}>Modern Classrooms</h3>
-                            <p style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.05rem' }}>
-                                Smart classes equipped with digital tools and high-speed internet to stay ahead in the technological age.
-                            </p>
+                            <Link to="/gallery" className="btn btn-primary" style={{ marginTop: '3rem' }}>Explore Gallery</Link>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* CTA Section */}
-            {/* CTA Section */}
-            <section style={{ 
-                paddingTop: '6rem',
-                paddingBottom: '6rem', 
-                background: 'var(--primary)', 
-                color: 'white', 
-                textAlign: 'center',
-                position: 'relative',
-                overflow: 'hidden'
-            }}>
-                {/* Decorative circle */}
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '-100px', 
-                    right: '-100px', 
-                    width: '300px', 
-                    height: '300px', 
-                    borderRadius: '50%', 
-                    background: 'rgba(255,255,255,0.05)' 
-                }}></div>
+            <section style={{ backgroundColor: 'var(--footer-bg)', color: 'white', padding: '6rem 1rem', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '400px', height: '400px', borderRadius: '50%', background: 'rgba(234, 179, 8, 0.15)', filter: 'blur(100px)' }}></div>
+                <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(234, 179, 8, 0.1)', filter: 'blur(80px)' }}></div>
                 
                 <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 800 }}>Start Your Journey Today</h2>
-                    <p style={{ fontSize: '1.1rem', color: '#94a3b8', marginBottom: '3rem', maxWidth: '750px', margin: '0 auto 3rem' }}>
-                        Admissions are now open for the 2026-27 academic session. Join a tradition of excellence.
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-                        <Link to="/contact" className="btn btn-secondary" style={{ padding: '1.25rem 3.5rem', fontSize: '1.1rem' }}>Apply Now</Link>
-                        <Link to="/gallery" className="btn" style={{ padding: '1.25rem 3.5rem', border: '1px solid #334155', color: '#94a3b8' }}>Virtual Tour</Link>
+                    <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)', marginBottom: '1.5rem', fontWeight: 800, color: 'white' }}>Start Your Journey Today</h2>
+                        <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, lineHeight: 1.6 }}>Join our vibrant community of learners and educators. Admissions for the academic year 2025-26 are now open.</p>
+                        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <Link to="/register" className="btn btn-secondary" style={{ padding: '1.25rem 3.5rem', fontSize: '1.1rem' }}>Apply Online Now</Link>
+                            <Link to="/contact" className="btn" style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '1.25rem 3.5rem', fontSize: '1.1rem', backdropFilter: 'blur(10px)' }}>Visit Our Campus</Link>
+                        </div>
                     </div>
                 </div>
             </section>
