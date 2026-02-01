@@ -43,13 +43,13 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
     const fetchSummary = async () => {
         setLoading(true);
         try {
-            console.log('Fetching summary...');
+
             const res = await fetch(`${API_URL}/admin/results/status-summary`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                console.log('Summary Data:', data);
+
                 setSummary(data);
             } else {
                 console.error('Summary fetch failed with status:', res.status);
@@ -80,6 +80,7 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
             <h3 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px', color: color }}>
                 <Icon size={20} /> {title} ({items.length})
             </h3>
+
             <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }} className="scroll-card">
                 {items.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No items.</p> : items.map((item, idx) => (
                     <div key={idx} style={{ padding: '8px', background: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -203,8 +204,8 @@ const StudentList = ({ students, onSelect, actionLabel }) => {
                             <img src={s.profilePic || `https://ui-avatars.com/api/?name=${s.name}`} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                         <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <h4 style={{ margin: 0, fontSize: '1rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</h4>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{s.studentId} • Class {s.class || s.className?.split('-')[1]}</div>
+                            <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</h4>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.studentId} • Class {s.class || s.className?.split('-')[1]}</div>
                         </div>
                         <ChevronRight size={20} color="#cbd5e1" />
                     </div>
@@ -776,97 +777,7 @@ const AdminDashboard = () => {
         } catch (err) { alert(err.message); }
     };
 
-    // Helper: Dynamic Student List (Table vs Card)
-    const StudentList = ({ students, onSelect, actionLabel }) => {
-        if (isMobile) {
-            return (
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                    {students.map(s => (
-                        <div key={s.id} style={{ padding: '1rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{s.name}</span>
-                                <span style={{ background: 'var(--background)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid var(--border-color)' }}>{s.class}</span>
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                                ID: {s.studentId} • Roll: {s.rollNumber}
-                            </div>
-                            <div style={{ marginBottom: '12px' }}>
-                                <span style={{ 
-                                    padding: '2px 8px', 
-                                    borderRadius: '12px', 
-                                    fontSize: '0.7rem', 
-                                    fontWeight: 800, 
-                                    backgroundColor: s.isFeesPaid ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                                    color: s.isFeesPaid ? '#22c55e' : '#ef4444' 
-                                }}>
-                                    {s.isFeesPaid ? 'PAID' : 'UNPAID'}
-                                </span>
-                            </div>
-                            <button 
-                                onClick={() => onSelect ? onSelect(s) : (setActiveTab('results'), setSelectedStudent(s))} 
-                                className="btn btn-primary" 
-                                style={{ width: '100%', padding: '0.6rem', fontSize: '0.9rem' }}
-                            >
-                                {actionLabel || 'View Results'} <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-        return (
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                <thead style={{ background: 'var(--background)', borderBottom: '2px solid var(--border-color)' }}>
-                    <tr>
-                        <th style={{ padding: '12px', color: 'var(--text-muted)' }}>ID</th>
-                        <th style={{ color: 'var(--text-muted)' }}>Roll</th>
-                        <th style={{ color: 'var(--text-muted)' }}>Name</th>
-                        <th style={{ color: 'var(--text-muted)' }}>Class</th>
-                        <th style={{ color: 'var(--text-muted)' }}>Status</th>
-                        <th style={{ color: 'var(--text-muted)' }}>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {students.map(s => (
-                        <tr key={s.id} className="table-row-hover" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{s.studentId}</td>
-                            <td style={{ color: 'var(--text-main)' }}>{s.rollNumber}</td>
-                            <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}>
-                                    <img src={s.profilePic || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }} />
-                                    {s.name}
-                                </div>
-                            </td>
-                            <td><span style={{ background: 'var(--background)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>{s.class}</span></td>
-                            <td>
-                                <span style={{ 
-                                    padding: '4px 10px', 
-                                    borderRadius: '20px', 
-                                    fontSize: '0.7rem', 
-                                    fontWeight: 800, 
-                                    backgroundColor: s.isFeesPaid ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                                    color: s.isFeesPaid ? '#22c55e' : '#ef4444' 
-                                }}>
-                                    {s.isFeesPaid ? 'PAID' : 'UNPAID'}
-                                </span>
-                            </td>
-                            <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <button 
-                                    className="btn btn-primary" 
-                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} 
-                                    onClick={(e) => { e.stopPropagation(); onSelect ? onSelect(s) : (setActiveTab('results'), setSelectedStudent(s)); }}
-                                >
-                                    {actionLabel || 'View Results'}
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteStudent(s.id); }} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><Trash2 size={16} /></button>
-                                <button onClick={(e) => { e.stopPropagation(); handleToggleBlock(s); }} style={{ color: s.isBlocked ? '#22c55e' : '#f59e0b', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>{s.isBlocked ? <Unlock size={16} /> : <Lock size={16} />}</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        );
-    };
+
 
     // Helper: Registration Request Card
     const RegistrationCard = ({ r, onAccept, onReject }) => (
@@ -1162,26 +1073,29 @@ const AdminDashboard = () => {
                              {selectedStudent ? (
                                 <div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                        <button onClick={() => setSelectedStudent(null)} className="btn" style={{ background: '#F1F5F9' }}>← Back to List</button>
+                                        <button onClick={() => setSelectedStudent(null)} className="btn" style={{ background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>← Back to List</button>
                                         <h3 style={{ margin: 0 }}>Fee Setup: {selectedStudent.name} <code>({selectedStudent.studentId})</code></h3>
                                     </div>
                                     <div style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem', padding: '2rem', background: 'var(--surface-hover)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'grid', gridTemplateColumns: feesForm.isPaid ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1.5rem' }}>
-                                            <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Amount (₹) 
-                                                <input type="number" style={{ marginTop: '0.5rem' }} value={feesForm.amount} onChange={e => setFeesForm({...feesForm, amount: e.target.value})} />
+                                            <label style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Amount (₹) 
+                                                <input type="number" style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)' }} value={feesForm.amount} onChange={e => setFeesForm({...feesForm, amount: e.target.value})} />
                                             </label>
-                                            <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Due Date 
-                                                <input type="date" style={{ marginTop: '0.5rem' }} value={feesForm.dueDate} onChange={e => setFeesForm({...feesForm, dueDate: e.target.value})} />
+                                            <label style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Due Date 
+                                                <input type="date" style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)' }} value={feesForm.dueDate} onChange={e => setFeesForm({...feesForm, dueDate: e.target.value})} />
                                             </label>
                                             {feesForm.isPaid && (
-                                                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Payment Date 
-                                                    <input type="date" style={{ marginTop: '0.5rem' }} value={feesForm.paymentDate} onChange={e => setFeesForm({...feesForm, paymentDate: e.target.value})} />
+                                                <label style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Payment Date 
+                                                    <input type="date" style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)' }} value={feesForm.paymentDate} onChange={e => setFeesForm({...feesForm, paymentDate: e.target.value})} />
                                                 </label>
                                             )}
                                         </div>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1rem', padding: '1rem', background: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                                            <input type="checkbox" checked={feesForm.isPaid} onChange={e => setFeesForm({...feesForm, isPaid: e.target.checked})} style={{ width: '22px', height: '22px', cursor: 'pointer' }} /> 
-                                            <span style={{ fontWeight: 600 }}>Mark as Paid</span>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1rem', padding: '1rem', background: feesForm.isPaid ? 'rgba(34, 197, 94, 0.1)' : 'var(--surface)', borderRadius: '10px', border: feesForm.isPaid ? '1px solid #22c55e' : '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                            <div style={{ width: '24px', height: '24px', borderRadius: '6px', border: feesForm.isPaid ? 'none' : '2px solid var(--text-muted)', background: feesForm.isPaid ? '#22c55e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                                                {feesForm.isPaid && <Check size={16} color="white" strokeWidth={3} />}
+                                            </div>
+                                            <input type="checkbox" checked={feesForm.isPaid} onChange={e => setFeesForm({...feesForm, isPaid: e.target.checked})} style={{ display: 'none' }} /> 
+                                            <span style={{ fontWeight: 600, color: feesForm.isPaid ? '#22c55e' : 'var(--text-main)' }}>Mark as Paid</span>
                                         </label>
                                         <button onClick={() => handleUpdateFees(selectedStudent.id)} className="btn btn-primary" style={{ marginTop: '1rem', padding: '1rem' }}>Save Fee Configuration</button>
                                     </div>
@@ -2239,15 +2153,15 @@ const AdminDashboard = () => {
                                                             {notice.targetType === 'ALL' ? 'PUBLIC' : notice.targetId}
                                                         </span>
                                                     </div>
-                                                    <small style={{ color: 'var(--text-muted)' }}>
+                                                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
                                                         {notice.status === 'SCHEDULED' ? `Scheduled for: ${new Date(notice.scheduledFor).toLocaleString()}` : `Created: ${new Date(notice.createdAt).toLocaleString()}`}
                                                     </small>
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                                    <button onClick={() => handleReuseNotice(notice)} className="btn" style={{ padding: '6px 12px', background: 'var(--background)', fontSize: '0.75rem' }} title="Reuse this notice template"><RefreshCw size={14} style={{ marginRight: '6px' }} /> Reuse</button>
-                                                    <button onClick={() => handleEditNotice(notice)} className="btn" style={{ padding: '6px', background: 'var(--background)' }} title="Edit"><Edit3 size={16} /></button>
-                                                    <button onClick={() => handleDownloadNoticePDF(notice)} className="btn" style={{ padding: '6px', background: 'var(--background)' }} title="Download PDF"><Download size={16} /></button>
-                                                    <button onClick={() => handleDeleteNotice(notice._id || notice.id)} className="btn" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }} title="Delete"><Trash2 size={16} /></button>
+                                                    <button onClick={() => handleReuseNotice(notice)} className="btn" style={{ padding: '6px 12px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem' }} title="Reuse this notice template"><RefreshCw size={14} style={{ marginRight: '6px' }} /> Reuse</button>
+                                                    <button onClick={() => handleEditNotice(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Edit"><Edit3 size={16} /></button>
+                                                    <button onClick={() => handleDownloadNoticePDF(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Download PDF"><Download size={16} /></button>
+                                                    <button onClick={() => handleDeleteNotice(notice._id || notice.id)} className="btn" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }} title="Delete"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
                                             <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.6, opacity: notice.status === 'DRAFT' ? 0.6 : 1 }}>{notice.content}</p>

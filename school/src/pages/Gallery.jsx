@@ -39,7 +39,7 @@ const Gallery = () => {
                 textAlign: 'center'
             }}>
                 <div className="container">
-                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Visual Journey</h1>
+                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem', color: 'white' }}>Visual Journey</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '800px', margin: '0 auto', opacity: 0.9 }}>
                         Capturing the spirit of Ranaghat Pal Chowdhury High (H.S.) School through moments of learning, sports, and celebrations.
                     </p>
@@ -64,8 +64,8 @@ const Gallery = () => {
                                     padding: '0.75rem 2rem',
                                     borderRadius: '2rem',
                                     border: 'none',
-                                    backgroundColor: category === cat ? 'var(--primary)' : '#f1f5f9',
-                                    color: category === cat ? 'white' : 'var(--text-muted)',
+                                    backgroundColor: category === cat ? 'var(--primary)' : 'var(--surface-hover)',
+                                    color: category === cat ? 'var(--background)' : 'var(--text-muted)',
                                     fontWeight: 600,
                                     cursor: 'pointer',
                                     transition: 'all 0.3s ease',
@@ -129,8 +129,8 @@ const Gallery = () => {
                                             color: 'white'
                                         }}>
                                             <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>{item.category || 'General'}</div>
-                                            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{item.title}</h3>
-                                            <p style={{ fontSize: '0.9rem', opacity: 0.8, lineHeight: '1.4' }}>{item.description}</p>
+                                            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'white' }}>{item.title}</h3>
+                                            <p style={{ fontSize: '0.9rem', opacity: 0.8, lineHeight: '1.4', color: 'white' }}>{item.description}</p>
                                         </div>
                                         <div style={{ 
                                             position: 'absolute', 

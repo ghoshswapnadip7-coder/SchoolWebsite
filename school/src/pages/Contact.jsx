@@ -53,8 +53,9 @@ const Contact = () => {
                                     <div style={{ 
                                         width: '50px', 
                                         height: '50px', 
+                                        height: '50px', 
                                         borderRadius: '1rem', 
-                                        backgroundColor: '#f1f5f9', 
+                                        backgroundColor: 'var(--surface-hover)', 
                                         display: 'flex', 
                                         alignItems: 'center', 
                                         justifyContent: 'center',
@@ -73,8 +74,9 @@ const Contact = () => {
                                     <div style={{ 
                                         width: '50px', 
                                         height: '50px', 
+                                        height: '50px', 
                                         borderRadius: '1rem', 
-                                        backgroundColor: '#f1f5f9', 
+                                        backgroundColor: 'var(--surface-hover)', 
                                         display: 'flex', 
                                         alignItems: 'center', 
                                         justifyContent: 'center',
@@ -93,8 +95,9 @@ const Contact = () => {
                                     <div style={{ 
                                         width: '50px', 
                                         height: '50px', 
+                                        height: '50px', 
                                         borderRadius: '1rem', 
-                                        backgroundColor: '#f1f5f9', 
+                                        backgroundColor: 'var(--surface-hover)', 
                                         display: 'flex', 
                                         alignItems: 'center', 
                                         justifyContent: 'center',
@@ -113,8 +116,9 @@ const Contact = () => {
                                     <div style={{ 
                                         width: '50px', 
                                         height: '50px', 
+                                        height: '50px', 
                                         borderRadius: '1rem', 
-                                        backgroundColor: '#f1f5f9', 
+                                        backgroundColor: 'var(--surface-hover)', 
                                         display: 'flex', 
                                         alignItems: 'center', 
                                         justifyContent: 'center',

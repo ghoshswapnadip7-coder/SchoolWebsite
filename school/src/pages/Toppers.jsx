@@ -49,7 +49,7 @@ const Toppers = () => {
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 179, 8, 0.2)', padding: '0.5rem 1.5rem', borderRadius: '2rem', color: 'var(--secondary)', fontWeight: 800, fontSize: '0.9rem', marginBottom: '2rem', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
                         <Award size={18} /> HALL OF FAME
                     </div>
-                    <h1 style={{ fontSize: '4.5rem', fontWeight: 900, marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>Toppers Gallery</h1>
+                    <h1 style={{ fontSize: '4.5rem', fontWeight: 900, marginBottom: '1.5rem', letterSpacing: '-0.02em', color: 'white' }}>Toppers Gallery</h1>
                     <p style={{ fontSize: '1.4rem', maxWidth: '800px', margin: '0 auto', opacity: 0.9, lineHeight: 1.6 }}>
                         Celebrating the academic excellence and outstanding achievements of our brightest stars who continue to inspire generations.
                     </p>
@@ -190,7 +190,7 @@ const Toppers = () => {
                                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--secondary)', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.1em' }}>
                                                 {topper.class} • {topper.year}
                                             </div>
-                                            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem' }}>{topper.name}</h3>
+                                            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: 'white' }}>{topper.name}</h3>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', opacity: 0.8, fontWeight: 600 }}>
                                                 View Achievement <ChevronRight size={16} />
                                             </div>

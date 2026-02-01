@@ -176,7 +176,7 @@ router.post('/results/publish', authenticateAdmin, async (req, res) => {
 router.get('/results/status-summary', authenticateAdmin, async (req, res) => {
     try {
         const allResults = await Result.find().populate('user', 'name studentId email isBlocked');
-        console.log('Total Results found:', allResults.length);
+
         
         const summary = {
             totalCount: allResults.length, // Debug info
