@@ -8,11 +8,11 @@ const RegistrationRequestSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true
+        // Note: Not unique to allow shared parent/sibling emails
     },
     studentId: {
-        type: String,
-        unique: true,
-        sparse: true
+        type: String
+        // Note: Not unique here to allow multiple requests (Fresh + Promotion etc)
     },
     class: {
         type: String,
@@ -53,6 +53,9 @@ const RegistrationRequestSchema = new mongoose.Schema({
         type: String,
         enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
         default: 'PENDING'
+    },
+    adminComment: {
+        type: String // Reason for rejection or note
     },
     createdAt: {
         type: Date,

@@ -268,9 +268,16 @@ const AdminDashboard = () => {
     const [regRequests, setRegRequests] = useState([]);
     const [studentRequests, setStudentRequests] = useState([]);
     const [payments, setPayments] = useState([]);
-    const [admissionSettings, setAdmissionSettings] = useState({ isOpen: false, expiryDate: '', allowedClasses: [] });
+    const [admissionSettings, setAdmissionSettings] = useState({ 
+        isOpen: false, 
+        expiryDate: '', 
+        allowedClasses: [], 
+        classFees: {}, 
+        subjectFees: {} 
+    });
     const [toppers, setToppers] = useState([]);
     const [examSheets, setExamSheets] = useState([]);
+    const [notices, setNotices] = useState([]);
 
 
     // Selection/UI State
@@ -281,6 +288,7 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [sendingEmail, setSendingEmail] = useState(null);
     const [activeSubTab, setActiveSubTab] = useState('Academic Marks');
+    const [publishingResult, setPublishingResult] = useState(null);
     
     // Form States
     const [newGalleryItem, setNewGalleryItem] = useState({ title: '', imageUrl: '', description: '', category: '' });
@@ -288,7 +296,7 @@ const AdminDashboard = () => {
     const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '', studentId: '', className: 'Class-10', rollNumber: '', profilePic: '' });
     const [studentSearch, setStudentSearch] = useState('');
     const [routineForm, setRoutineForm] = useState({ periods: [{ subject: '', teacher: '', startTime: '', endTime: '', room: '' }] });
-    const [resultForm, setResultForm] = useState({ subject: '', marks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' });
+    const [resultForm, setResultForm] = useState({ subject: '', marks: '', projectMarks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' });
     const [editingResult, setEditingResult] = useState(null);
     const [feesForm, setFeesForm] = useState({ amount: 0, dueDate: '', isPaid: false, paymentDate: new Date().toISOString().split('T')[0] });
     const [studentFilterClass, setStudentFilterClass] = useState('All');
@@ -299,10 +307,22 @@ const AdminDashboard = () => {
     const [blockReason, setBlockReason] = useState('');
     
     const [batchReport, setBatchReport] = useState([]);
+    const [processingAction, setProcessingAction] = useState(null);
 
     // Topper/ExamSheet Forms
     const [newTopper, setNewTopper] = useState({ name: '', class: 'Class-10', year: '', rank: '', imageUrl: '', videoUrl: '', message: '', details: '' });
     const [examSheetForm, setExamSheetForm] = useState({ title: '', sheetUrl: '', semester: 'Final Exam 2025', examDate: new Date().toISOString().split('T')[0] });
+    const [noticeFilter, setNoticeFilter] = useState('ALL'); // ALL, PUBLISHED, DRAFT, SCHEDULED
+    const [editingNoticeId, setEditingNoticeId] = useState(null);
+    const [newNotice, setNewNotice] = useState({ 
+        title: '', 
+        content: '', 
+        targetType: 'ALL', 
+        targetId: '', 
+        attachments: [],
+        status: 'PUBLISHED',
+        scheduledFor: ''
+    });
     const [reportModalOpen, setReportModalOpen] = useState(false);
 
     // Mobile Navigation Tabs configuration (Dependent on Data State)
@@ -365,7 +385,7 @@ const AdminDashboard = () => {
                 }
             };
 
-            const [resGallery, resEvents, resStudents, resRoutines, resRegRequests, resStudentRequests, resPayments, resAdmissionSettings, resToppers, resExamSheets] = await Promise.all([
+            const [resGallery, resEvents, resStudents, resRoutines, resRegRequests, resStudentRequests, resPayments, resAdmissionSettings, resToppers, resExamSheets, resNotices] = await Promise.all([
                 fetch(`${API_URL}/gallery`).then(res => res.ok ? res.json() : []).catch(() => []),
                 fetch(`${API_URL}/events`).then(res => res.ok ? res.json() : []).catch(() => []),
                 fetchJSON(`${API_URL}/admin/students`),
@@ -375,7 +395,8 @@ const AdminDashboard = () => {
                 fetchJSON(`${API_URL}/admin/payments`),
                 fetchJSON(`${API_URL}/admin/admission-settings`),
                 fetchJSON(`${API_URL}/admin/toppers`),
-                fetchJSON(`${API_URL}/admin/exam-sheets`)
+                fetchJSON(`${API_URL}/admin/exam-sheets`),
+                fetchJSON(`${API_URL}/admin/notices/list`)
             ]);
 
             setGalleryItems(Array.isArray(resGallery) ? resGallery : []);
@@ -387,13 +408,16 @@ const AdminDashboard = () => {
             setPayments(Array.isArray(resPayments) ? resPayments : []);
             setToppers(Array.isArray(resToppers) ? resToppers : []);
             setExamSheets(Array.isArray(resExamSheets) ? resExamSheets : []);
+            setNotices(Array.isArray(resNotices) ? resNotices : []);
 
             // Handle Admission Settings
             if (resAdmissionSettings) {
                 setAdmissionSettings({
                     isOpen: resAdmissionSettings.isOpen,
                     expiryDate: resAdmissionSettings.expiryDate ? resAdmissionSettings.expiryDate.split('T')[0] : '',
-                    allowedClasses: resAdmissionSettings.allowedClasses || []
+                    allowedClasses: resAdmissionSettings.allowedClasses || [],
+                    classFees: resAdmissionSettings.classFees || {},
+                    subjectFees: resAdmissionSettings.subjectFees || {}
                 });
             }
 
@@ -491,19 +515,48 @@ const AdminDashboard = () => {
     };
 
     const handleAcceptReg = async (id) => {
-        const res = await fetch(`${API_URL}/admin/registration-requests/${id}/accept`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        if (res.ok) fetchData();
+        setProcessingAction({ id, type: 'accept' });
+        try {
+            const res = await fetch(`${API_URL}/admin/registration-requests/${id}/accept`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (res.ok) {
+                alert('Account approved and student notified via email!');
+                fetchData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Failed to approve');
+            }
+        } catch (err) {
+            alert('Error processing request');
+        } finally {
+            setProcessingAction(null);
+        }
     };
 
     const handleRejectReg = async (id) => {
-        const res = await fetch(`${API_URL}/admin/registration-requests/${id}/reject`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        if (res.ok) fetchData();
+        const reason = prompt('Please enter a reason for declining this application (Optional):');
+        if (reason === null) return; // User cancelled prompt
+
+        setProcessingAction({ id, type: 'reject' });
+        try {
+            const res = await fetch(`${API_URL}/admin/registration-requests/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ reason })
+            });
+            if (res.ok) {
+                alert('Application declined and student notified.');
+                fetchData();
+            } else {
+                alert('Failed to decline request');
+            }
+        } catch (err) {
+            alert('Error connecting to server');
+        } finally {
+            setProcessingAction(null);
+        }
     };
 
     const handleUpdateProfilePic = async (sid, url) => {
@@ -536,7 +589,11 @@ const AdminDashboard = () => {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: JSON.stringify({ ...resultForm, userId: selectedStudent.id })
         });
-        if (res.ok) { fetchStudentResults(selectedStudent.id); setEditingResult(null); setResultForm({ subject: '', marks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' }); }
+        if (res.ok) { 
+            fetchStudentResults(selectedStudent.id); 
+            setEditingResult(null); 
+            setResultForm({ subject: '', marks: '', projectMarks: '', grade: '', semester: 'Final Exam 2025', className: selectedStudent.class }); 
+        }
     };
 
     const handleAddGallery = async (e) => { 
@@ -607,6 +664,86 @@ const AdminDashboard = () => {
         } catch (err) {
             alert(err.message);
         }
+    };
+
+    const handleAddNotice = async (e) => {
+        e.preventDefault();
+        try {
+            const method = editingNoticeId ? 'PUT' : 'POST';
+            const url = editingNoticeId ? `${API_URL}/admin/notices/${editingNoticeId}` : `${API_URL}/admin/notices`;
+            
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify(newNotice)
+            });
+            if (res.ok) {
+                alert(editingNoticeId ? 'Notice updated!' : 'Notice saved/published!');
+                fetchData();
+                setNewNotice({ title: '', content: '', targetType: 'ALL', targetId: '', attachments: [], status: 'PUBLISHED', scheduledFor: '' });
+                setEditingNoticeId(null);
+            } else { alert('Failed to save notice'); }
+        } catch (err) { alert('Error connecting to server'); }
+    };
+
+    const handleReuseNotice = (notice) => {
+        setNewNotice({
+            title: notice.title,
+            content: notice.content,
+            targetType: notice.targetType,
+            targetId: notice.targetId || '',
+            attachments: notice.attachments || [],
+            status: 'PUBLISHED',
+            scheduledFor: ''
+        });
+        setEditingNoticeId(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleEditNotice = (notice) => {
+        setNewNotice({
+            title: notice.title,
+            content: notice.content,
+            targetType: notice.targetType,
+            targetId: notice.targetId || '',
+            attachments: notice.attachments || [],
+            status: notice.status,
+            scheduledFor: notice.scheduledFor ? new Date(notice.scheduledFor).toISOString().slice(0, 16) : ''
+        });
+        setEditingNoticeId(notice._id || notice.id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDeleteNotice = async (id) => {
+        if (!confirm('Are you sure you want to delete this notice?')) return;
+        try {
+            const res = await fetch(`${API_URL}/admin/notices/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (res.ok) { fetchData(); }
+            else { alert('Failed to delete'); }
+        } catch (err) { alert('Error connecting to server'); }
+    };
+
+    const handleDownloadNoticePDF = async (notice) => {
+        try {
+            const res = await fetch(`${API_URL}/admin/notices/generate-pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ title: notice.title, content: notice.content })
+            });
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${notice.title.replace(/\s+/g, '_')}_Notice.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else { alert('Failed to generate PDF'); }
+        } catch (err) { alert('Error generating PDF'); }
     };
 
     const handleExamSheetSubmit = async (e) => {
@@ -757,8 +894,22 @@ const AdminDashboard = () => {
                     )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => onReject(r.id)} className="btn" style={{ background: '#fee2e2', color: '#dc2626' }}>Decline Request</button>
-                    <button onClick={() => onAccept(r.id)} className="btn btn-primary"><Check size={18} /> Approve Account</button>
+                    <button 
+                        disabled={processingAction?.id === r.id}
+                        onClick={() => onReject(r.id)} 
+                        className="btn" 
+                        style={{ background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                        {processingAction?.id === r.id && processingAction?.type === 'reject' ? <><Loader2 size={16} className="animate-spin" /> Declining...</> : 'Decline Request'}
+                    </button>
+                    <button 
+                        disabled={processingAction?.id === r.id}
+                        onClick={() => onAccept(r.id)} 
+                        className="btn btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                        {processingAction?.id === r.id && processingAction?.type === 'accept' ? <><Loader2 size={16} className="animate-spin" /> Accepting...</> : <><Check size={18} /> Approve Account</>}
+                    </button>
                 </div>
             </div>
             
@@ -851,6 +1002,7 @@ const AdminDashboard = () => {
                             { id: 'student-requests', label: 'Student Queries', icon: Bell, badge: studentRequests.filter(r => r.status === 'PENDING').length },
                             { id: 'routines', label: 'Routines', icon: TableIcon },
                             { id: 'toppers', label: 'Toppers', icon: Award },
+                            { id: 'notices', label: 'School Notices', icon: MessageSquare },
                             { id: 'events', label: 'Events', icon: CalendarPlus },
                             { id: 'gallery', label: 'Gallery', icon: ImageIcon },
                         ].map(tab => (
@@ -998,7 +1150,7 @@ const AdminDashboard = () => {
                                 students={students
                                     .filter(s => studentFilterClass === 'All' || s.class === studentFilterClass)
                                     .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch))} 
-                                onSelect={(s) => { setActiveTab('results'); setSelectedStudent(s); }}
+                                 onSelect={(s) => { setActiveTab('results'); setSelectedStudent(s); setResultForm(prev => ({...prev, className: s.class})); }}
                                 actionLabel="View Results"
                             />
                         </div>
@@ -1082,8 +1234,9 @@ const AdminDashboard = () => {
                                             students={students
                                                 .filter(s => studentFilterClass === 'All' || s.class === studentFilterClass)
                                                 .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch))}
-                                            onSelect={(s) => { 
+                                             onSelect={(s) => { 
                                                 setSelectedStudent(s); 
+                                                setResultForm(prev => ({...prev, className: s.class}));
                                                 setFeesForm({
                                                     amount: s.feesAmount||0, 
                                                     dueDate: s.feesDueDate?s.feesDueDate.split('T')[0]:'', 
@@ -1203,80 +1356,120 @@ const AdminDashboard = () => {
 
                                 {activeSubTab === 'Academic Marks' ? (
                                     <>
-                                        <form onSubmit={handleResultSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '0.75rem', margin: '2rem 0', padding: '1.5rem', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-                                            <select 
+                                        <form onSubmit={handleResultSubmit} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '0.8fr 1.4fr 1fr 1fr 0.7fr 1.2fr auto', gap: '0.75rem', margin: '2rem 0', padding: '1.5rem', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                                            <div style={{ position: 'relative' }}>
+                                                <input 
+                                                    readOnly 
+                                                    value={resultForm.className} 
+                                                    style={{ background: 'var(--surface-hover)', cursor: 'default', color: 'var(--text-muted)' }} 
+                                                />
+                                                <small style={{ position: 'absolute', bottom: '-15px', left: '0', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Target Class</small>
+                                            </div>
+                                            {['Class-11', 'Class-12'].includes(selectedStudent.class) ? (
+                                                <select 
+                                                    required 
+                                                    value={resultForm.subject} 
+                                                    onChange={e => setResultForm({...resultForm, subject: e.target.value})}
+                                                    style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                                                >
+                                                    <option value="">Select Subject</option>
+                                                    {[...new Set(['Bengali', 'English', ...(selectedStudent.subjects || [])])].map((s, i) => (
+                                                        <option key={i} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <select 
+                                                    required 
+                                                    value={resultForm.subject} 
+                                                    onChange={e => setResultForm({...resultForm, subject: e.target.value})}
+                                                    style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                                                >
+                                                    <option value="">Select Subject</option>
+                                                    {['Bengali', 'English', 'Mathematics', 'History', 'Geography', 'Life Science', 'Physical Science'].map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                            <div style={{ position: 'relative' }}>
+                                                <input 
+                                                    required 
+                                                    type="number" 
+                                                    placeholder="Main Marks (80/70)" 
+                                                    value={resultForm.marks} 
+                                                    onChange={e => {
+                                                        const m = parseInt(e.target.value) || 0;
+                                                        const p = parseInt(resultForm.projectMarks) || 0;
+                                                        const total = m + p;
+                                                        let g = 'F';
+                                                        if (total >= 90) g = 'AA';
+                                                        else if (total >= 80) g = 'A+';
+                                                        else if (total >= 60) g = 'A';
+                                                        else if (total >= 50) g = 'B';
+                                                        else if (total >= 40) g = 'C';
+                                                        else if (total >= 30) g = 'D';
+                                                        setResultForm({...resultForm, marks: e.target.value, grade: g});
+                                                    }} 
+                                                />
+                                                <small style={{ position: 'absolute', bottom: '-15px', left: '0', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Main Theory</small>
+                                            </div>
+                                            <div style={{ position: 'relative' }}>
+                                                <input 
+                                                    required 
+                                                    type="number" 
+                                                    placeholder="Project Marks" 
+                                                    value={resultForm.projectMarks} 
+                                                    onChange={e => {
+                                                        const p = parseInt(e.target.value) || 0;
+                                                        const m = parseInt(resultForm.marks) || 0;
+                                                        
+                                                        // Validation
+                                                        const classNum = parseInt(resultForm.className.split('-')[1]);
+                                                        let maxP = 10;
+                                                        if (classNum > 10) {
+                                                            if (['Bengali', 'English', 'Mathematics'].includes(resultForm.subject)) maxP = 20;
+                                                            else maxP = 30;
+                                                        }
+                                                        
+                                                        if (p > maxP) {
+                                                            alert(`Error: Project marks for ${resultForm.subject} in ${resultForm.className} cannot exceed ${maxP}.`);
+                                                            return;
+                                                        }
+
+                                                        const total = m + p;
+                                                        let g = 'F';
+                                                        if (total >= 90) g = 'AA';
+                                                        else if (total >= 80) g = 'A+';
+                                                        else if (total >= 60) g = 'A';
+                                                        else if (total >= 50) g = 'B';
+                                                        else if (total >= 40) g = 'C';
+                                                        else if (total >= 30) g = 'D';
+                                                        setResultForm({...resultForm, projectMarks: e.target.value, grade: g});
+                                                    }} 
+                                                />
+                                                <small style={{ position: 'absolute', bottom: '-15px', left: '0', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Project/Practical</small>
+                                            </div>
+                                            <input 
                                                 required 
-                                                value={resultForm.className} 
-                                                onChange={e => setResultForm({...resultForm, className: e.target.value})}
-                                                style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
-                                            >
-                                                <option value="">Select Class</option>
-                                                {['Class-1', 'Class-2', 'Class-3', 'Class-4', 'Class-5', 'Class-6', 'Class-7', 'Class-8', 'Class-9', 'Class-10', 'Class-11', 'Class-12'].map(c => (
-                                                    <option key={c} value={c}>{c}</option>
-                                                ))}
-                                            </select>
-                                    {['Class-11', 'Class-12'].includes(selectedStudent.class) ? (
-                                        <select 
-                                            required 
-                                            value={resultForm.subject} 
-                                            onChange={e => setResultForm({...resultForm, subject: e.target.value})}
-                                            style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
-                                        >
-                                            <option value="">Select Subject</option>
-                                            {[...new Set(['Bengali', 'English', ...(selectedStudent.subjects || [])])].map((s, i) => (
-                                                <option key={i} value={s}>{s}</option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <select 
-                                            required 
-                                            value={resultForm.subject} 
-                                            onChange={e => setResultForm({...resultForm, subject: e.target.value})}
-                                            style={{ padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
-                                        >
-                                            <option value="">Select Subject</option>
-                                            {['Bengali', 'English', 'Mathematics', 'History', 'Geography', 'Life Science', 'Physical Science'].map(s => (
-                                                <option key={s} value={s}>{s}</option>
-                                            ))}
-                                        </select>
-                                    )}
-                                    <input 
-                                        required 
-                                        type="number" 
-                                        placeholder="Marks" 
-                                        value={resultForm.marks} 
-                                        onChange={e => {
-                                            const m = parseInt(e.target.value) || 0;
-                                            let g = 'F';
-                                            if (m >= 90) g = 'AA';
-                                            else if (m >= 80) g = 'A+';
-                                            else if (m >= 60) g = 'A';
-                                            else if (m >= 50) g = 'B';
-                                            else if (m >= 40) g = 'C';
-                                            else if (m >= 30) g = 'D';
-                                            setResultForm({...resultForm, marks: e.target.value, grade: g});
-                                        }} 
-                                    />
-                                    <input 
-                                        required 
-                                        readOnly
-                                        placeholder="Grade (Auto)" 
-                                        value={resultForm.grade} 
-                                        style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}
-                                    />
-                                    <input required placeholder="Semester" value={resultForm.semester} onChange={e => setResultForm({...resultForm, semester: e.target.value})} />
-                                    <button type="submit" className="btn btn-primary">{editingResult ? 'Update Marks' : 'Add Entry'}</button>
-                                    {editingResult && (
-                                        <button 
-                                            type="button" 
-                                            className="btn" 
-                                            onClick={() => { setEditingResult(null); setResultForm({ subject: '', marks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' }); }}
-                                            style={{ background: 'var(--surface-hover)', color: 'var(--text-main)' }}
-                                        >
-                                            Cancel
-                                        </button>
-                                    )}
-                                </form>
+                                                readOnly
+                                                placeholder="Grade" 
+                                                value={resultForm.grade} 
+                                                style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}
+                                            />
+                                            <input required placeholder="Semester" value={resultForm.semester} onChange={e => setResultForm({...resultForm, semester: e.target.value})} />
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button type="submit" className="btn btn-primary">{editingResult ? 'Update' : 'Add'}</button>
+                                                {editingResult && (
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn" 
+                                                        onClick={() => { setEditingResult(null); setResultForm({ subject: '', marks: '', projectMarks: '', grade: '', semester: 'Final Exam 2025', className: selectedStudent.class }); }}
+                                                        style={{ background: 'var(--surface-hover)', color: 'var(--text-main)' }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </form>
 
                                 {Object.entries(studentResults.reduce((acc, curr) => {
                                     (acc[curr.semester] = acc[curr.semester] || []).push(curr);
@@ -1323,19 +1516,24 @@ const AdminDashboard = () => {
                                                 </button>
                                             ) : (
                                                 <button 
+                                                    disabled={!!publishingResult}
                                                     onClick={() => {
                                                         if(confirm(`Publish results for ${semester}?`)) {
+                                                            setPublishingResult(semester);
                                                             fetch(`${API_URL}/admin/results/publish`, {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                                                                 body: JSON.stringify({ studentId: selectedStudent.id, semester })
-                                                            }).then(res => { if(res.ok) { alert('Published!'); fetchStudentResults(selectedStudent.id); } });
+                                                            }).then(res => { 
+                                                                if(res.ok) { alert('Published!'); fetchStudentResults(selectedStudent.id); } 
+                                                            }).finally(() => setPublishingResult(null));
                                                         }
                                                     }}
                                                     className="btn btn-primary" 
-                                                    style={{ fontSize: '0.8rem' }}
+                                                    style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}
                                                 >
-                                                    Publish
+                                                    {publishingResult === semester && <Loader2 className="animate-spin" size={14} />}
+                                                    {publishingResult === semester ? 'Publishing...' : 'Publish'}
                                                 </button>
                                             )}
                                         </div>
@@ -1346,12 +1544,15 @@ const AdminDashboard = () => {
                                                     <div key={r.id} style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                                                             <strong>{r.subject}</strong>
-                                                            <span style={{ fontWeight: 700, color: r.grade === 'F' ? '#dc2626' : '#166534' }}>{r.grade} ({r.marks})</span>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                <span style={{ fontWeight: 700, color: r.grade === 'F' ? '#dc2626' : '#166534' }}>{r.grade}</span>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>M: {r.marks} | P: {r.projectMarks || 0}</span>
+                                                            </div>
                                                         </div>
                                                         <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <span style={{ color: r.isPublished ? 'green' : 'orange' }}>{r.isPublished ? 'Published' : 'Draft'}</span>
                                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                                <button onClick={() => { setEditingResult(r); setResultForm({ subject: r.subject, marks: r.marks, grade: r.grade, semester: r.semester }); }} style={{ color: '#3b82f6', background: 'none', border: 'none' }}><Edit3 size={16} /></button>
+                                                                <button onClick={() => { setEditingResult(r); setResultForm({ subject: r.subject, marks: r.marks, projectMarks: r.projectMarks || '', grade: r.grade, semester: r.semester, className: r.className || selectedStudent.class }); }} style={{ color: '#3b82f6', background: 'none', border: 'none' }}><Edit3 size={16} /></button>
                                                                 <button onClick={async () => { if(confirm('Delete?')) { await fetch(`${API_URL}/admin/results/${r.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}); fetchStudentResults(selectedStudent.id); } }} style={{ color: '#ef4444', background: 'none', border: 'none' }}><Trash2 size={16} /></button>
                                                             </div>
                                                         </div>
@@ -1360,12 +1561,13 @@ const AdminDashboard = () => {
                                             </div>
                                         ) : (
                                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                                <thead style={{ background: 'var(--surface-hover)', fontSize: '0.85rem', color: 'var(--text-muted)' }}><tr><th style={{ padding: '10px' }}>Subject</th><th>Marks</th><th>Grade</th><th>Status</th><th>Action</th></tr></thead>
+                                                <thead style={{ background: 'var(--surface-hover)', fontSize: '0.85rem', color: 'var(--text-muted)' }}><tr><th style={{ padding: '10px' }}>Subject</th><th>Theory</th><th>Project</th><th>Grade</th><th>Status</th><th>Action</th></tr></thead>
                                                 <tbody>
                                                     {results.map(r => (
                                                         <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                                             <td style={{ padding: '8px' }}>{r.subject}</td>
                                                             <td>{r.marks}</td>
+                                                            <td>{r.projectMarks || 0}</td>
                                                             <td>
                                                                 <span style={{ fontWeight: 700, color: r.grade === 'F' ? '#dc2626' : '#166534' }}>{r.grade}</span>
                                                                 {r.grade === 'F' && <span style={{ marginLeft: '8px', fontSize: '0.6rem', background: '#fee2e2', color: '#dc2626', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>FAILED</span>}
@@ -1374,7 +1576,7 @@ const AdminDashboard = () => {
                                                                 {r.isPublished ? 'Visible' : 'Draft'}
                                                             </td>
                                                             <td>
-                                                                <button onClick={() => { setEditingResult(r); setResultForm({ subject: r.subject, marks: r.marks, grade: r.grade, semester: r.semester }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', marginRight: '10px' }}><Edit3 size={16} /></button>
+                                                                <button onClick={() => { setEditingResult(r); setResultForm({ subject: r.subject, marks: r.marks, projectMarks: r.projectMarks || '', grade: r.grade, semester: r.semester, className: r.className || selectedStudent.class }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', marginRight: '10px' }}><Edit3 size={16} /></button>
                                                                 <button onClick={async () => { if(confirm('Delete result?')) { await fetch(`${API_URL}/admin/results/${r.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}); fetchStudentResults(selectedStudent.id); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
                                                             </td>
                                                         </tr>
@@ -1435,11 +1637,11 @@ const AdminDashboard = () => {
                             </div>
                         ) : (
                             <div>
-                                <StudentSelector onSelect={(s) => setSelectedStudent(s)} label="Academic Results Management" />
+                                <StudentSelector onSelect={(s) => { setSelectedStudent(s); setResultForm(prev => ({...prev, className: s.class})); }} label="Academic Results Management" />
                                 
                                 {/* New Result Status Dashboard */}
                                 <ResultStatusDashboard 
-                                    onSelectStudent={(s) => setSelectedStudent(s)}
+                                    onSelectStudent={(s) => { setSelectedStudent(s); setResultForm(prev => ({...prev, className: s.class})); }}
                                     token={localStorage.getItem('token')}
                                     onRefresh={() => setRefreshTrigger(prev => prev + 1)} 
                                 />
@@ -1576,6 +1778,75 @@ const AdminDashboard = () => {
                                             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                                 Only selected classes will appear in the registration form. Use this to launch admissions for specific grades.
                                             </p>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gap: '0.8rem' }}>
+                                            <label style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <CreditCard size={16} className="text-secondary" /> Class-wise Admission Fees
+                                            </label>
+                                            <div style={{ 
+                                                display: 'grid', 
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
+                                                gap: '12px',
+                                                padding: '1rem',
+                                                background: 'var(--background)',
+                                                borderRadius: '12px',
+                                                border: '1px solid var(--border-color)'
+                                            }}>
+                                                {[5,6,7,8,9,10,11,12].map(n => {
+                                                    const className = `Class-${n}`;
+                                                    return (
+                                                        <div key={n} style={{ display: 'grid', gap: '4px' }}>
+                                                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Class {n}</div>
+                                                            <input 
+                                                                type="number" 
+                                                                placeholder="Amount"
+                                                                style={{ padding: '8px', fontSize: '0.85rem', borderRadius: '6px' }}
+                                                                value={admissionSettings.classFees?.[className] || ''}
+                                                                onChange={e => setAdmissionSettings(prev => ({
+                                                                    ...prev,
+                                                                    classFees: { ...prev.classFees, [className]: e.target.value }
+                                                                }))}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gap: '0.8rem' }}>
+                                            <label style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Award size={16} className="text-secondary" /> Additional Subject Fees (COMS, AI, COMA)
+                                            </label>
+                                            <div style={{ 
+                                                display: 'grid', 
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+                                                gap: '12px',
+                                                padding: '1rem',
+                                                background: 'var(--background)',
+                                                borderRadius: '12px',
+                                                border: '1px solid var(--border-color)'
+                                            }}>
+                                                {[
+                                                    { id: 'COMS', label: 'Computer Science (COMS)' },
+                                                    { id: 'AI', label: 'Artificial Intelligence (AI)' },
+                                                    { id: 'Computer Application', label: 'Comp. Application (COMA)' }
+                                                ].map(sub => (
+                                                    <div key={sub.id} style={{ display: 'grid', gap: '4px' }}>
+                                                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>{sub.label}</div>
+                                                        <input 
+                                                            type="number" 
+                                                            placeholder="Extra Price"
+                                                            style={{ padding: '8px', fontSize: '0.85rem', borderRadius: '6px' }}
+                                                            value={admissionSettings.subjectFees?.[sub.id] || ''}
+                                                            onChange={e => setAdmissionSettings(prev => ({
+                                                                ...prev,
+                                                                subjectFees: { ...prev.subjectFees, [sub.id]: e.target.value }
+                                                            }))}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         <button 
@@ -1849,6 +2120,149 @@ const AdminDashboard = () => {
                                         <button onClick={() => handleDeleteEvent(ev.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '8px' }} title="Delete event"><Trash2 size={20} /></button>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NOTICES */}
+                    {activeTab === 'notices' && (
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                                <h2>School Notices & Announcements</h2>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    {['ALL', 'PUBLISHED', 'DRAFT', 'SCHEDULED'].map(f => (
+                                        <button 
+                                            key={f} 
+                                            onClick={() => setNoticeFilter(f)}
+                                            style={{ 
+                                                padding: '6px 12px', 
+                                                borderRadius: '20px', 
+                                                fontSize: '0.8rem', 
+                                                fontWeight: 700,
+                                                background: noticeFilter === f ? 'var(--secondary)' : 'var(--surface)',
+                                                color: noticeFilter === f ? 'var(--primary)' : 'var(--text-muted)',
+                                                border: '1px solid var(--border-color)',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {f}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <form onSubmit={handleAddNotice} style={{ display: 'grid', gap: '1.2rem', background: 'var(--surface-hover)', padding: '2rem', borderRadius: '16px', marginBottom: '2.5rem', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <p style={{ margin: 0, fontWeight: 700, color: 'var(--primary)' }}>
+                                        {editingNoticeId ? 'Editing Notice' : 'Draft or Publish New Notice'}
+                                    </p>
+                                    {editingNoticeId && <button type="button" onClick={() => { setEditingNoticeId(null); setNewNotice({ title: '', content: '', targetType: 'ALL', targetId: '', attachments: [], status: 'PUBLISHED', scheduledFor: '' }); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', cursor: 'pointer' }}>Cancel Edit</button>}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr', gap: '1.5rem' }}>
+                                    <input required placeholder="Notice Title (e.g., Summer Vacation)" value={newNotice.title} onChange={e => setNewNotice({...newNotice, title: e.target.value})} />
+                                    <select value={newNotice.targetType} onChange={e => setNewNotice({...newNotice, targetType: e.target.value})}>
+                                        <option value="ALL">All Students</option>
+                                        <option value="CLASS">Specific Class</option>
+                                        <option value="STUDENT">Specific Student</option>
+                                    </select>
+                                    {newNotice.targetType !== 'ALL' && (
+                                        newNotice.targetType === 'CLASS' ? (
+                                            <select value={newNotice.targetId} onChange={e => setNewNotice({...newNotice, targetId: e.target.value})}>
+                                                <option value="">Select Class</option>
+                                                {[5,6,7,8,9,10,11,12].map(n => <option key={n} value={`Class-${n}`}>Class {n}</option>)}
+                                            </select>
+                                        ) : (
+                                            <input required placeholder="Student ID" value={newNotice.targetId} onChange={e => setNewNotice({...newNotice, targetId: e.target.value})} />
+                                        )
+                                    )}
+                                </div>
+                                <textarea required placeholder="Write your notice content here..." rows="5" value={newNotice.content} onChange={e => setNewNotice({...newNotice, content: e.target.value})}></textarea>
+                                
+                                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr', gap: '1.5rem', alignItems: 'end' }}>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Status & Scheduling</label>
+                                        <select value={newNotice.status} onChange={e => setNewNotice({...newNotice, status: e.target.value})} style={{ width: '100%' }}>
+                                            <option value="PUBLISHED">Publish Immediately</option>
+                                            <option value="DRAFT">Save as Draft</option>
+                                            <option value="SCHEDULED">Schedule for Future</option>
+                                        </select>
+                                    </div>
+                                    {newNotice.status === 'SCHEDULED' && (
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Publish At</label>
+                                            <input type="datetime-local" required value={newNotice.scheduledFor} onChange={e => setNewNotice({...newNotice, scheduledFor: e.target.value})} />
+                                        </div>
+                                    )}
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Document {newNotice.attachments.length > 0 && ' (Uploaded)'}</label>
+                                        <input type="file" onChange={e => handleFileUpload(e.target.files[0], (updater) => {
+                                            setNewNotice(prev => {
+                                                const next = updater({});
+                                                return { ...prev, attachments: [next.attachments] };
+                                            });
+                                        }, 'attachments')} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                    <button type="button" onClick={() => handleDownloadNoticePDF(newNotice)} disabled={!newNotice.title || !newNotice.content} className="btn" style={{ background: 'var(--surface)', color: 'var(--primary)', border: '1px solid var(--border-color)', flex: 1 }}>
+                                        <Printer size={18} style={{ marginRight: '8px' }} /> Preview PDF
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                                        {editingNoticeId ? 'Update Notice' : newNotice.status === 'PUBLISHED' ? 'Publish Now' : newNotice.status === 'DRAFT' ? 'Save Draft' : 'Schedule Notice'}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div style={{ display: 'grid', gap: '1rem' }}>
+                                {notices.filter(n => {
+                                    if (noticeFilter === 'ALL') return true;
+                                    const status = n.status || 'PUBLISHED';
+                                    return status === noticeFilter;
+                                }).length === 0 ? (
+                                    <p style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>No notices found under this filter.</p>
+                                ) : (
+                                    notices.filter(n => {
+                                        if (noticeFilter === 'ALL') return true;
+                                        const status = n.status || 'PUBLISHED';
+                                        return status === noticeFilter;
+                                    }).map(notice => (
+                                        <div key={notice._id || notice.id} style={{ padding: '1.5rem', background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <h3 style={{ margin: 0 }}>{notice.title}</h3>
+                                                        <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: (notice.status || 'PUBLISHED') === 'PUBLISHED' ? 'rgba(34, 197, 94, 0.1)' : notice.status === 'DRAFT' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(99, 102, 241, 0.1)', color: (notice.status || 'PUBLISHED') === 'PUBLISHED' ? '#22c55e' : notice.status === 'DRAFT' ? '#f59e0b' : '#6366f1', fontWeight: 800 }}>
+                                                            {notice.status || 'PUBLISHED'}
+                                                        </span>
+                                                        <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9', fontWeight: 800 }}>
+                                                            {notice.targetType === 'ALL' ? 'PUBLIC' : notice.targetId}
+                                                        </span>
+                                                    </div>
+                                                    <small style={{ color: 'var(--text-muted)' }}>
+                                                        {notice.status === 'SCHEDULED' ? `Scheduled for: ${new Date(notice.scheduledFor).toLocaleString()}` : `Created: ${new Date(notice.createdAt).toLocaleString()}`}
+                                                    </small>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => handleReuseNotice(notice)} className="btn" style={{ padding: '6px 12px', background: 'var(--background)', fontSize: '0.75rem' }} title="Reuse this notice template"><RefreshCw size={14} style={{ marginRight: '6px' }} /> Reuse</button>
+                                                    <button onClick={() => handleEditNotice(notice)} className="btn" style={{ padding: '6px', background: 'var(--background)' }} title="Edit"><Edit3 size={16} /></button>
+                                                    <button onClick={() => handleDownloadNoticePDF(notice)} className="btn" style={{ padding: '6px', background: 'var(--background)' }} title="Download PDF"><Download size={16} /></button>
+                                                    <button onClick={() => handleDeleteNotice(notice._id || notice.id)} className="btn" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }} title="Delete"><Trash2 size={16} /></button>
+                                                </div>
+                                            </div>
+                                            <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.6, opacity: notice.status === 'DRAFT' ? 0.6 : 1 }}>{notice.content}</p>
+                                            {notice.attachments && notice.attachments.filter(u => u && u !== 'undefined').length > 0 && (
+                                                <div style={{ marginTop: '1rem', display: 'flex', gap: '10px' }}>
+                                                    {notice.attachments.filter(u => u && u !== 'undefined').map((url, idx) => (
+                                                        <a key={idx} href={url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: 600, textDecoration: 'none' }}>
+                                                            <FileText size={14} /> Attachment {idx + 1}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     )}

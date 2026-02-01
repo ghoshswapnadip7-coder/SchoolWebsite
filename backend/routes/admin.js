@@ -8,8 +8,9 @@ const RegistrationRequest = require('../models/RegistrationRequest');
 const StudentRequest = require('../models/StudentRequest');
 const AdmissionSetting = require('../models/AdmissionSetting');
 const Payment = require('../models/Payment');
-const { sendApprovalEmail, sendResultPDFEmail } = require('../utils/email'); // Import Email Service
-const { generateResultPDF } = require('../utils/pdfGenerator');
+const Notice = require('../models/Notice');
+const { sendApprovalEmail, sendResultPDFEmail, sendRejectionEmail } = require('../utils/email'); // Import Email Service
+const { generateResultPDF, generateNoticePDF } = require('../utils/pdfGenerator');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -105,8 +106,8 @@ router.get('/results/:studentId', authenticateAdmin, async (req, res) => {
 // Add new result
 router.post('/results', authenticateAdmin, async (req, res) => {
     try {
-        const { userId, subject, marks, grade, semester, className } = req.body;
-        const result = await Result.create({ user: userId, subject, marks, grade, semester, className });
+        const { userId, subject, marks, projectMarks, grade, semester, className } = req.body;
+        const result = await Result.create({ user: userId, subject, marks, projectMarks: projectMarks || 0, grade, semester, className });
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add result' });
@@ -116,8 +117,8 @@ router.post('/results', authenticateAdmin, async (req, res) => {
 // Update result
 router.put('/results/:id', authenticateAdmin, async (req, res) => {
     try {
-        const { subject, marks, grade, semester, className } = req.body;
-        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, grade, semester, className, isPublished: false }, { new: true });
+        const { subject, marks, projectMarks, grade, semester, className } = req.body;
+        const result = await Result.findByIdAndUpdate(req.params.id, { subject, marks, projectMarks, grade, semester, className, isPublished: false }, { new: true });
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update result' });
@@ -361,9 +362,25 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 ? Number(lastStudentInClass.rollNumber) + 1 
                 : 1;
 
-            // Get admission expiry date for fee due date
+            // Get admission settings for fees and expiry
             const admissionSettings = await AdmissionSetting.findOne();
             const automaticDueDate = admissionSettings?.expiryDate || new Date(new Date().getFullYear(), 11, 31);
+            
+            // Calculate Fees
+            let calculatedFees = 0;
+            if (admissionSettings) {
+                // Base class fee
+                const baseFee = admissionSettings.classFees?.get(request.class) || 0;
+                calculatedFees += Number(baseFee);
+
+                // Subject fees (Extra amount for subjects like COMS, AI, etc.)
+                if (request.subjects && request.subjects.length > 0) {
+                    request.subjects.forEach(sub => {
+                        const subFee = admissionSettings.subjectFees?.get(sub) || 0;
+                        calculatedFees += Number(subFee);
+                    });
+                }
+            }
 
             // Create the student account
             await User.create({
@@ -376,6 +393,7 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 stream: request.stream,
                 subjects: request.subjects,
                 role: 'STUDENT',
+                feesAmount: calculatedFees, // Auto-set from admission settings
                 feesDueDate: automaticDueDate // Auto-set from admission expiry
             });
             
@@ -384,13 +402,88 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 request.email, 
                 request.name, 
                 request.studentId, 
-                request.stream, // e.g. 'Science'
-                request.subjects // e.g. ['Physics', 'Chemistry']
+                request.stream, 
+                request.subjects 
             );
             
-            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved`);
+            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved | Fees: ${calculatedFees}`);
         } else {
-            console.log(`[SYSTEM] Account for ${request.email} already exists. Marking request as ACCEPTED.`);
+            // Update existing student for promotion
+
+            // --- STRICT PROMOTION CHECK ---
+            // Verify student has passed all subjects in their CURRENT class before promotion
+            if (existing.class && existing.subjects && existing.subjects.length > 0) {
+                const currentResults = await Result.find({ 
+                    user: existing._id, 
+                    className: existing.class 
+                });
+
+                const resultSubjects = currentResults.map(r => r.subject);
+                const missingSubjects = existing.subjects.filter(s => !resultSubjects.includes(s));
+                
+                if (missingSubjects.length > 0) {
+                    return res.status(400).json({ 
+                        error: `Promotion Denied: Incomplete Marksheet. Missing subjects: ${missingSubjects.join(', ')}` 
+                    });
+                }
+
+                const failedSubjects = currentResults.filter(r => (Number(r.marks) + Number(r.projectMarks || 0)) < 30);
+                if (failedSubjects.length > 0) {
+                    return res.status(400).json({ 
+                        error: `Promotion Denied: Student failed in: ${failedSubjects.map(f => f.subject).join(', ')}` 
+                    });
+                }
+            }
+            // --- END STRICT PROMOTION CHECK ---
+            
+            // Assign Auto-Increment Roll Number for the specific class
+            const lastStudentInClass = await User.findOne({ class: request.class }).sort({ rollNumber: -1 });
+            const neRoll = lastStudentInClass && !isNaN(lastStudentInClass.rollNumber) 
+                ? Number(lastStudentInClass.rollNumber) + 1 
+                : 1;
+
+            existing.class = request.class;
+            existing.rollNumber = neRoll; // Assign calculated roll for the new class
+            existing.stream = request.stream;
+            existing.subjects = request.subjects;
+            existing.isFeesPaid = false; // Reset fees for new class/term
+            
+            const admissionSettings = await AdmissionSetting.findOne();
+            
+            // Calculate Fees for Promotion
+            let calculatedFees = 0;
+            if (admissionSettings) {
+                // Base class fee
+                const baseFee = admissionSettings.classFees?.get(request.class) || 0;
+                calculatedFees += Number(baseFee);
+
+                // Subject fees
+                if (request.subjects && request.subjects.length > 0) {
+                    request.subjects.forEach(sub => {
+                        const subFee = admissionSettings.subjectFees?.get(sub) || 0;
+                        calculatedFees += Number(subFee);
+                    });
+                }
+
+                if (admissionSettings.expiryDate) {
+                    existing.feesDueDate = admissionSettings.expiryDate;
+                }
+            }
+
+            existing.feesAmount = calculatedFees; // Apply new batch fees
+
+            await existing.save();
+
+            // Send Promotion Email
+            await sendApprovalEmail(
+                request.email, 
+                request.name, 
+                request.studentId, 
+                request.stream, 
+                request.subjects 
+            );
+
+            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Promotion Approved`);
         }
 
         request.status = 'ACCEPTED';
@@ -406,6 +499,7 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
 router.post('/registration-requests/:id/reject', authenticateAdmin, async (req, res) => {
     try {
         const id = req.params.id;
+        const { reason } = req.body;
         const request = await RegistrationRequest.findById(id);
         if (!request) {
             console.error(`[REJECT] Request ${id} not found`);
@@ -413,9 +507,14 @@ router.post('/registration-requests/:id/reject', authenticateAdmin, async (req, 
         }
 
         request.status = 'REJECTED';
+        request.adminComment = reason;
         await request.save();
-        console.log(`[REJECT] Request ${id} marked as REJECTED`);
-        res.json({ message: 'Registration request declined.' });
+
+        // Send Rejection Email
+        await sendRejectionEmail(request.email, request.name, reason);
+        
+        console.log(`[REJECT] Request ${id} marked as REJECTED and email sent to ${request.email}`);
+        res.json({ message: 'Registration request declined and student notified.' });
     } catch (error) {
         console.error('Decline Request Internal Error:', error);
         res.status(500).json({ error: error.message || 'Failed to decline request' });
@@ -517,14 +616,15 @@ router.get('/admission-settings', authenticateAdmin, async (req, res) => {
 // Update admission settings
 router.put('/admission-settings', authenticateAdmin, async (req, res) => {
     try {
-        const { isOpen, expiryDate, allowedClasses } = req.body;
+        const { isOpen, expiryDate, allowedClasses, classFees, subjectFees } = req.body;
         const settings = await AdmissionSetting.findOneAndUpdate(
             {}, 
-            { isOpen, expiryDate, allowedClasses, updatedAt: new Date() },
+            { isOpen, expiryDate, allowedClasses, classFees, subjectFees, updatedAt: new Date() },
             { upsert: true, new: true }
         );
         res.json(settings);
     } catch (error) {
+        console.error('Update Admission Settings Error:', error);
         res.status(500).json({ error: 'Failed' });
     }
 });
@@ -691,6 +791,78 @@ router.get('/exam-sheets', authenticateAdmin, async (req, res) => {
         res.json(sheets);
     } catch (error) {
         res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// --- NOTICES MANAGEMENT ---
+
+// Create a Notice
+router.post('/notices', authenticateAdmin, async (req, res) => {
+    try {
+        const { title, content, attachments, targetType, targetId, status, scheduledFor } = req.body;
+        
+        const noticeData = {
+            title,
+            content,
+            attachments: attachments || [],
+            targetType: targetType || 'ALL',
+            targetId: targetType === 'STUDENT' ? targetId?.toUpperCase() : targetId,
+            author: req.user.userId,
+            status: status || 'PUBLISHED'
+        };
+
+        if (status === 'SCHEDULED' && scheduledFor) {
+            noticeData.scheduledFor = new Date(scheduledFor);
+        }
+
+        const notice = await Notice.create(noticeData);
+        res.status(201).json(notice);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create notice' });
+    }
+});
+
+// List notices for Admin (can filter by status)
+router.get('/notices/list', authenticateAdmin, async (req, res) => {
+    try {
+        const { status } = req.query;
+        let query = {};
+        if (status) {
+            if (status === 'PUBLISHED') {
+                query = { status: { $in: ['PUBLISHED', null] } };
+            } else {
+                query = { status };
+            }
+        }
+        const notices = await Notice.find(query).sort({ createdAt: -1 });
+        res.json(notices);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch notices' });
+    }
+});
+
+// Delete a Notice
+router.delete('/notices/:id', authenticateAdmin, async (req, res) => {
+    try {
+        await Notice.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Notice deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete notice' });
+    }
+});
+
+// Generate Notice PDF
+router.post('/notices/generate-pdf', authenticateAdmin, async (req, res) => {
+    try {
+        const { title, content } = req.body;
+        const pdfBuffer = await generateNoticePDF({ title, content });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=notice.pdf');
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
     }
 });
 

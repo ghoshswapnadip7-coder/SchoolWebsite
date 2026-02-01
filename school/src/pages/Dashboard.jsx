@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     User, GraduationCap, Calendar, Clock, MapPin, LogOut, Award, BookOpen,
     ClipboardList, Bell, Plus, CheckCircle, XCircle, AlertCircle, Send,
-    CreditCard, Download, Printer, ShieldAlert, Smartphone, Banknote, ChevronRight, FileText
+    CreditCard, Download, Printer, ShieldAlert, Smartphone, Banknote, ChevronRight, FileText, MessageSquare
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -23,6 +23,7 @@ const Dashboard = () => {
     const [payments, setPayments] = useState([]);
     const [myRequests, setMyRequests] = useState([]);
     const [exams, setExams] = useState([]);
+    const [notices, setNotices] = useState([]);
     
     // UI States
     const [loading, setLoading] = useState(true);
@@ -58,14 +59,15 @@ const Dashboard = () => {
             const profileData = await resProfile.json();
             setProfile(profileData);
 
-            const [resResults, resPerformance, resExamSheets, resRoutine, resExams, resRequests, resPayments] = await Promise.all([
+            const [resResults, resPerformance, resExamSheets, resRoutine, resExams, resRequests, resPayments, resNotices] = await Promise.all([
                 fetch(`${API_URL}/student/results`, { headers: h }).then(r => r.json()),
                 fetch(`${API_URL}/student/performance`, { headers: h }).then(r => r.json()),
                 fetch(`${API_URL}/student/exam-sheets`, { headers: h }).then(r => r.json()),
                 fetch(`${API_URL}/student/routine/${profileData.class || 'Class-10'}`).then(r => r.json()),
                 fetch(`${API_URL}/student/exams`).then(r => r.json()),
                 fetch(`${API_URL}/student/requests`, { headers: h }).then(r => r.json()),
-                fetch(`${API_URL}/student/payments`, { headers: h }).then(r => r.json())
+                fetch(`${API_URL}/student/payments`, { headers: h }).then(r => r.json()),
+                fetch(`${API_URL}/student/notices`, { headers: h }).then(r => r.json())
             ]);
 
             setResults(resResults || []);
@@ -75,6 +77,7 @@ const Dashboard = () => {
             setExams(resExams || []);
             setMyRequests(resRequests || []);
             setPayments(resPayments || []);
+            setNotices(Array.isArray(resNotices) ? resNotices : []);
 
         } catch (err) {
             setError("Service temporarily unavailable.");
@@ -197,64 +200,87 @@ const Dashboard = () => {
     };
 
     const handlePrintResult = () => {
-        // Updated Logic for Class 11/12: Best of 5 Logic
+        // Logic for Class 11/12: Best of 5 Logic
         // 1. Compulsory: Bengali (BEN), English (ENG)
-        // 2. Electives: Top 3 are counted. Others are Optional.
-        // 3. Total is out of 500.
+        // 2. Electives: Top 3 are counted.
+        // 3. Fail Conditions:
+        //    - Junior (5-10): Fail in ANY subject (<30)
+        //    - Senior (11-12): Fail in Compulsory OR Fail in >= 2 Electives
         
         const isSenior = ['Class-11', 'Class-12'].includes(profile?.class);
         let totalMarks = 0;
         let maxMarks = 0;
         let optionalSubjects = [];
+        let isFail = false;
+        
+        const getM = (r) => Number(r.marks) || 0;
+        // Pass mark is 30
+        const isFailSubject = (r) => getM(r) < 30;
 
         if (isSenior) {
-            const getM = (r) => Number(r.marks) || 0;
-            // Improved regex to catch BEN, ENG, Bengali, English
+            // Improved regex to catch BEN, ENG
             const compulsory = results.filter(r => /^(ben|eng|bengali|english)/i.test(r.subject)); 
+            const electives = results.filter(r => !/^(ben|eng|bengali|english)/i.test(r.subject));
             
-            // Get electives and sort by marks descending
-            const electives = results.filter(r => !/^(ben|eng|bengali|english)/i.test(r.subject))
-                                       .sort((a, b) => getM(b) - getM(a));
+            // 1. Check Compulsory Failures
+            if (compulsory.some(isFailSubject)) {
+                isFail = true;
+            }
+
+            // 2. Check Elective Failures (Fail if >= 2 electives failed)
+            const failedElectives = electives.filter(isFailSubject);
+            if (failedElectives.length >= 2) {
+                isFail = true;
+            }
+
+            // Calculate Marks (Best 5)
+            const sortedElectives = [...electives].sort((a, b) => getM(b) - getM(a));
+            const validElectives = sortedElectives.slice(0, 3);
             
-            // Top 3 electives are valid for total
-            const validElectives = electives.slice(0, 3);
-            
-            // Any elective NOT in top 3 is optional
-            if (electives.length > 3) {
-                optionalSubjects = electives.slice(3).map(e => e.subject);
+            if (sortedElectives.length > 3) {
+                optionalSubjects = sortedElectives.slice(3).map(e => e.subject);
             }
             
             totalMarks = compulsory.reduce((sum, r) => sum + getM(r), 0) + 
                          validElectives.reduce((sum, r) => sum + getM(r), 0);
             maxMarks = 500;
         } else {
-            // For junior classes, all subjects count
-            totalMarks = results.reduce((sum, r) => sum + (Number(r.marks) || 0), 0);
+            // Junior: Fail if ANY subject < 30
+            if (results.some(isFailSubject)) {
+                isFail = true;
+            }
+            totalMarks = results.reduce((sum, r) => sum + getM(r), 0);
             maxMarks = results.length * 100;
         }
 
-        const percentage = maxMarks > 0 ? (totalMarks / maxMarks) * 100 : 0;
+        // If Failed, do NOT show percentage
+        const percentage = (maxMarks > 0 && !isFail) ? (totalMarks / maxMarks) * 100 : 0;
         
         let overallGrade = 'F';
-        if (percentage >= 90) overallGrade = 'AA';
-        else if (percentage >= 80) overallGrade = 'A+';
-        else if (percentage >= 60) overallGrade = 'A';
-        else if (percentage >= 50) overallGrade = 'B';
-        else if (percentage >= 40) overallGrade = 'C';
-        else if (percentage >= 30) overallGrade = 'D';
+        if (!isFail) {
+            if (percentage >= 90) overallGrade = 'AA';
+            else if (percentage >= 80) overallGrade = 'A+';
+            else if (percentage >= 60) overallGrade = 'A';
+            else if (percentage >= 50) overallGrade = 'B';
+            else if (percentage >= 40) overallGrade = 'C';
+            else if (percentage >= 30) overallGrade = 'D';
+        } else {
+            overallGrade = 'FAIL';
+        }
 
         const resultRows = results.map(r => {
             const isOpt = isSenior && optionalSubjects.includes(r.subject);
+            const isFailedLine = getM(r) < 30;
             return `
             <tr>
                 <td style="text-align: left; padding-left: 20px;">
                     ${r.subject} 
                     ${isOpt ? '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic; margin-left: 5px;">(Optional)</span>' : ''}
                 </td>
-                <td style="text-align: right; padding-right: 20px;">
+                <td style="text-align: right; padding-right: 20px; color: ${isFailedLine ? '#dc2626' : 'inherit'}; font-weight: ${isFailedLine ? 'bold' : 'normal'};">
                     ${r.marks}
                 </td>
-                <td style="text-align: center;">${r.grade}</td>
+                <td style="text-align: center; color: ${r.grade === 'F' ? '#dc2626' : '#22c55e'}; font-weight: 700;">${r.grade}</td>
                 <td style="text-align: center;">${r.semester}</td>
             </tr>
             `;
@@ -300,9 +326,9 @@ const Dashboard = () => {
                     <table><thead><tr><th>Subject</th><th>Marks</th><th>Grade</th><th>Exam</th></tr></thead><tbody>${resultRows}</tbody></table>
                     
                     <div class="summary">
-                        <div><div>Total Marks</div><div>${totalMarks} / ${maxMarks}</div></div>
-                        <div><div>Percentage</div><div>${percentage.toFixed(2)}%</div></div>
-                        <div><div>Overall Grade</div><div>${overallGrade}</div></div>
+                        <div><div>Total Marks</div><div>${isFail ? '---' : totalMarks + ' / ' + maxMarks}</div></div>
+                        <div><div>Percentage</div><div>${isFail ? '---' : percentage.toFixed(2) + '%'}</div></div>
+                        <div><div>Result Status</div><div style="color: ${isFail ? '#f87171' : '#4ade80'}">${overallGrade}</div></div>
                     </div>
 
                     <div class="footer"><div class="sig">Class Teacher</div><div class="sig">Principal</div></div>
@@ -460,7 +486,47 @@ const Dashboard = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: '2.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                    
+                    {/* Official Notices Section */}
+                    <div className="card" style={{ borderLeft: '6px solid var(--primary)', background: 'linear-gradient(to right, var(--surface), var(--background))' }}>
+                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}>
+                            <MessageSquare color="var(--primary)" /> Recent School Notices
+                        </h2>
+                        {notices.length > 0 ? (
+                            <div style={{ display: 'grid', gap: '1.2rem' }}>
+                                {notices.map(notice => (
+                                    <div key={notice._id || notice.id} style={{ padding: '1.2rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>{notice.title}</h3>
+                                                    <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: notice.targetType === 'ALL' ? 'rgba(34, 197, 94, 0.1)' : notice.targetType === 'CLASS' ? 'rgba(14, 165, 233, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: notice.targetType === 'ALL' ? '#22c55e' : notice.targetType === 'CLASS' ? '#0ea5e9' : '#ef4444', fontWeight: 800 }}>
+                                                        {notice.targetType === 'ALL' ? 'PUBLIC' : notice.targetType === 'CLASS' ? 'CLASS' : 'PERSONAL'}
+                                                    </span>
+                                                </div>
+                                                <small style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{new Date(notice.createdAt).toLocaleDateString()}</small>
+                                            </div>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{notice.content}</p>
+                                        {notice.attachments && notice.attachments.filter(u => u && u !== 'undefined').length > 0 && (
+                                            <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                                {notice.attachments.filter(u => u && u !== 'undefined').map((url, idx) => (
+                                                    <a key={idx} href={url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', background: 'var(--background)', padding: '6px 12px', borderRadius: '20px', color: 'var(--secondary)', textDecoration: 'none', border: '1px solid var(--border-color)', fontWeight: 700 }}>
+                                                        <FileText size={14} /> {`View Doc ${idx + 1}`}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '2rem', background: 'var(--background)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                                <MessageSquare size={32} style={{ opacity: 0.1, marginBottom: '10px' }} />
+                                <p style={{ margin: 0, fontSize: '0.9rem' }}>No active notices at this time.</p>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Performance Graph Card */}
                     <div className="card">
                         <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}><BookOpen color="var(--primary)" /> Academic Growth</h2>

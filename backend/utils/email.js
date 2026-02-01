@@ -103,4 +103,39 @@ const sendResultPDFEmail = async (to, name, semester, pdfBuffer) => {
     }
 };
 
-module.exports = { sendApprovalEmail, sendResultPDFEmail };
+const sendRejectionEmail = async (to, name, reason) => {
+    try {
+        const mailOptions = {
+            from: `"School Admin" <${process.env.EMAIL_USER}>`,
+            to: to,
+            subject: 'Update Regarding Your Admission/Promotion Application',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #ef4444;">Application Update</h2>
+                    <p>Dear <strong>${name}</strong>,</p>
+                    <p>We are writing to inform you that after careful review, we are unable to approve your recent admission/promotion application at this time.</p>
+                    
+                    <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #991b1b;">Current Status: Declined</h3>
+                        <p><strong>Reason:</strong> ${reason || 'Does not meet current administrative criteria or seat unavailability.'}</p>
+                    </div>
+
+                    <p>For more information or to discuss your application, please visit the school administrative office between 11:00 AM and 3:00 PM on working days.</p>
+                    
+                    <p style="margin-top: 30px; font-size: 0.8em; color: #666;">
+                        This is an automated notification. Please do not reply directly to this email.
+                    </p>
+                </div>
+            `
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[REJECTION EMAIL SENT] To: ${to} | ID: ${info.messageId}`);
+        return true;
+    } catch (error) {
+        console.error('[EMAIL ERROR] Failed to send rejection email:', error);
+        return false;
+    }
+};
+
+module.exports = { sendApprovalEmail, sendResultPDFEmail, sendRejectionEmail };

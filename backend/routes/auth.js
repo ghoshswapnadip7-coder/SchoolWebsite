@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const AdmissionSetting = require('../models/AdmissionSetting');
+const Result = require('../models/Result');
 
 const router = express.Router();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key-change-this-in-prod';
@@ -32,29 +33,157 @@ router.post('/apply-registration', async (req, res) => {
             });
         }
         
-        if (!name || !email || !className || !rollNumber || !applicationType || !password) {
-            return res.status(400).json({ error: 'Core fields including password are required' });
-        }
-
-        // Fresh admission validation (ensure docs are present)
-        if (applicationType === 'FRESH' && (!documents || !documents.aadharCard || !documents.pastMarksheet)) {
-            return res.status(400).json({ error: 'Fresh admissions require Aadhar and Marksheet (Images/PDFs)' });
+        if (!applicationType) {
+            return res.status(400).json({ error: 'Application type is required' });
         }
 
         // Remove email uniqueness checks as per user request (siblings can share parent email)
         
-        let studentIdToUse;
-        if (applicationType === 'PROMOTION' && previousStudentId) {
-            studentIdToUse = previousStudentId;
-            // Check if this student already has a pending request
-            const existingRequest = await RegistrationRequest.findOne({ studentId: studentIdToUse, status: 'PENDING' });
+        if (applicationType === 'PROMOTION') {
+            if (!previousStudentId) return res.status(400).json({ error: 'Student ID is required for promotion' });
+            
+            const existingStudent = await User.findOne({ studentId: previousStudentId.toUpperCase(), role: 'STUDENT' });
+            if (!existingStudent) return res.status(404).json({ error: 'Student not found with this ID' });
+
+            // Auto-fill from existing record
+            const studentName = existingStudent.name;
+            const studentEmail = existingStudent.email;
+            const studentPassword = existingStudent.password; // Keep existing hashed password
+
+            // Class Level Validation
+            const getClassLevel = (className) => {
+                const match = className.match(/\d+/);
+                return match ? parseInt(match[0], 10) : 0;
+            };
+
+            const currentLevel = getClassLevel(existingStudent.class || 'Class-0');
+            const targetLevel = getClassLevel(className);
+
+            if (targetLevel < currentLevel) {
+                return res.status(400).json({ 
+                    error: 'Invalid Promotion', 
+                    message: `You cannot apply for a class (${className}) lower than your current class (${existingStudent.class}).` 
+                });
+            }
+
+            // --- PROMOTION ELIGIBILITY CHECK ---
+            // If the student is applying for a higher class, they MUST have passed all subjects in their current class.
+            if (targetLevel > currentLevel) {
+                // 1. Fetch current class results
+                 const currentResults = await Result.find({ 
+                    user: existingStudent._id, 
+                    className: existingStudent.class 
+                });
+
+                // 2. PRIORITY CHECK: Any Failures?
+                const isFailSubject = (r) => (Number(r.marks) + Number(r.projectMarks || 0)) < 30;
+                const isSenior = ['Class-11', 'Class-12'].includes(existingStudent.class);
+                let isFail = false;
+                let failedSubjectsDetails = [];
+
+                if (isSenior) {
+                    const compulsory = currentResults.filter(r => /^(ben|eng|bengali|english)/i.test(r.subject));
+                    const electives = currentResults.filter(r => !/^(ben|eng|bengali|english)/i.test(r.subject));
+
+                    const failedCompulsory = compulsory.filter(isFailSubject);
+                    const failedElectives = electives.filter(isFailSubject);
+
+                    if (failedCompulsory.length > 0) {
+                        isFail = true;
+                        failedSubjectsDetails = [...failedSubjectsDetails, ...failedCompulsory];
+                    }
+                    if (failedElectives.length >= 2) {
+                        isFail = true;
+                        failedSubjectsDetails = [...failedSubjectsDetails, ...failedElectives];
+                    }
+                } else {
+                    const failed = currentResults.filter(isFailSubject);
+                    if (failed.length > 0) {
+                        isFail = true;
+                        failedSubjectsDetails = failed;
+                    }
+                }
+
+                if (isFail) {
+                    return res.status(403).json({ 
+                        error: 'Promotion Ineligible', 
+                        message: `You cannot apply for promotion/re-admission because you have failed in one or more subjects (${failedSubjectsDetails.map(f => f.subject).join(', ')}) in ${existingStudent.class}. Please contact the Head of Institution (HOI) for further guidance.` 
+                    });
+                }
+
+                // 3. SECONDARY CHECK: Completeness
+                const resultSubjects = currentResults.map(r => r.subject);
+                const missingSubjects = (existingStudent.subjects && existingStudent.subjects.length > 0) 
+                    ? existingStudent.subjects.filter(s => !resultSubjects.includes(s))
+                    : [];
+                
+                if (missingSubjects.length > 0) {
+                    return res.status(403).json({ 
+                        error: 'Promotion Ineligible', 
+                        message: `You cannot apply for promotion because your marksheet for ${existingStudent.class} is incomplete. Missing subjects: ${missingSubjects.join(', ')}. Please contact the administrative office/HOI.` 
+                    });
+                }
+            }
+
+            // --- CLASS 12 RESTRICTION CHECK ---
+            // Students promoting from Class 11 to 12 CANNOT change their subjects/stream.
+            if (className === 'Class-12' && existingStudent.class === 'Class-11') {
+                if (existingStudent.stream !== stream) {
+                    return res.status(400).json({ error: 'Invalid Stream', message: 'You cannot change your stream when promoting to Class 12.' });
+                }
+                
+                // Compare subjects (ensure arrays have same content)
+                const subjectsMatch = subjects.length === existingStudent.subjects.length && 
+                    subjects.every(s => existingStudent.subjects.includes(s));
+                
+                if (!subjectsMatch) {
+                    return res.status(400).json({ error: 'Invalid Subject Selection', message: 'You cannot change your subjects when promoting to Class 12. Proceed with Class 11 subjects.' });
+                }
+            }
+            // --- END ELIGIBILITY CHECK ---
+
+            // Validation for Class 11/12
+            const isSeniorSecondary = ['Class-11', 'Class-12'].includes(className);
+            if (isSeniorSecondary && (!stream || !subjects || subjects.length === 0)) {
+                return res.status(400).json({ error: 'Stream and Subjects are required for Class 11 and 12' });
+            }
+
+            // Check for pending requests
+            const existingRequest = await RegistrationRequest.findOne({ studentId: previousStudentId.toUpperCase(), status: 'PENDING' });
             if (existingRequest) return res.status(400).json({ error: 'A promotion request is already pending for this ID' });
-        } else {
-            // Auto-generate for FRESH
-            const totalStudents = await User.countDocuments({ role: 'STUDENT' });
-            const totalReqs = await RegistrationRequest.countDocuments();
-            studentIdToUse = `RPHS${new Date().getFullYear()}${String(totalStudents + totalReqs + 101).padStart(4, '0')}`;
+
+            const request = await RegistrationRequest.create({
+                name: studentName,
+                email: studentEmail,
+                studentId: previousStudentId.toUpperCase(),
+                class: className,
+                rollNumber: rollNumber || 'TBD',
+                stream,
+                subjects,
+                applicationType,
+                previousStudentId,
+                password: studentPassword,
+                status: 'PENDING'
+            });
+
+            return res.status(201).json({ 
+                message: 'Promotion request received!', 
+                studentId: request.studentId 
+            });
         }
+
+        // FRESH Application Logic
+        if (!name || !email || !className || !rollNumber || !password) {
+            return res.status(400).json({ error: 'Core fields including password are required' });
+        }
+
+        if (!documents || !documents.aadharCard || !documents.pastMarksheet) {
+            return res.status(400).json({ error: 'Fresh admissions require Aadhar and Marksheet (Images/PDFs)' });
+        }
+
+        const totalStudents = await User.countDocuments({ role: 'STUDENT' });
+        const totalReqs = await RegistrationRequest.countDocuments();
+        const studentIdToUse = `RPHS${new Date().getFullYear()}${String(totalStudents + totalReqs + 101).padStart(4, '0')}`;
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -66,14 +195,13 @@ router.post('/apply-registration', async (req, res) => {
             rollNumber,
             stream,
             subjects,
-            applicationType,
-            previousStudentId,
-            documents: applicationType === 'FRESH' ? documents : undefined,
+            applicationType: 'FRESH',
+            documents,
             password: hashedPassword
         });
 
         res.status(201).json({ 
-            message: applicationType === 'FRESH' ? 'Fresh admission application submitted!' : 'Promotion request received!', 
+            message: 'Fresh admission application submitted!', 
             studentId: request.studentId 
         });
     } catch (error) {
@@ -228,6 +356,84 @@ router.get('/admission-status', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch status' });
+    }
+});
+
+// Check Promotion Eligibility (Public helper for UI)
+router.get('/check-eligibility/:studentId', async (req, res) => {
+    try {
+        const studentId = req.params.studentId.toUpperCase();
+        const student = await User.findOne({ studentId, role: 'STUDENT' });
+        
+        if (!student) return res.status(404).json({ error: 'Student not found with this ID' });
+
+        // Fetch current class results
+        const currentResults = await Result.find({ user: student._id, className: student.class });
+
+        // 1. PRIORITY CHECK: Any Failures?
+        const isFailSubject = (r) => (Number(r.marks) + Number(r.projectMarks || 0)) < 30;
+        const isSenior = ['Class-11', 'Class-12'].includes(student.class);
+        let isFail = false;
+        let failedSubjectsDetails = [];
+
+        if (isSenior) {
+            const compulsory = currentResults.filter(r => /^(ben|eng|bengali|english)/i.test(r.subject));
+            const electives = currentResults.filter(r => !/^(ben|eng|bengali|english)/i.test(r.subject));
+
+            const failedCompulsory = compulsory.filter(isFailSubject);
+            const failedElectives = electives.filter(isFailSubject);
+
+            if (failedCompulsory.length > 0) {
+                isFail = true;
+                failedSubjectsDetails = [...failedSubjectsDetails, ...failedCompulsory];
+            }
+            if (failedElectives.length >= 2) {
+                isFail = true;
+                failedSubjectsDetails = [...failedSubjectsDetails, ...failedElectives];
+            }
+        } else {
+            const failed = currentResults.filter(isFailSubject);
+            if (failed.length > 0) {
+                isFail = true;
+                failedSubjectsDetails = failed;
+            }
+        }
+        
+        if (isFail) {
+            return res.status(403).json({ 
+                eligible: false,
+                reason: 'FAILED_SUBJECTS',
+                message: `You have failed in: ${failedSubjectsDetails.map(f => f.subject).join(', ')} in your previous class (${student.class}).`,
+                details: 'Contact the Head of Institution (HOI) for further guidance.'
+            });
+        }
+        
+        // 2. SECONDARY CHECK: Completeness
+        // Only check for missing subjects if they haven't failed any existing ones.
+        const resultSubjects = currentResults.map(r => r.subject);
+        const missingSubjects = (student.subjects && student.subjects.length > 0) 
+            ? student.subjects.filter(s => !resultSubjects.includes(s))
+            : [];
+        
+        if (missingSubjects.length > 0) {
+            return res.status(403).json({ 
+                eligible: false,
+                reason: 'INCOMPLETE_MARKSHEET',
+                message: `Your marksheet for ${student.class} is incomplete. Missing: ${missingSubjects.join(', ')}.`,
+                details: 'Please contact administration.'
+            });
+        }
+
+        res.json({ 
+            eligible: true, 
+            studentName: student.name, 
+            currentClass: student.class,
+            stream: student.stream,     // Pass stream for pre-filling
+            subjects: student.subjects  // Pass subjects for pre-filling/restriction
+        });
+    } catch (error) {
+        console.error('Check eligibility error:', error);
+        res.status(500).json({ error: 'Check failed' });
     }
 });
 

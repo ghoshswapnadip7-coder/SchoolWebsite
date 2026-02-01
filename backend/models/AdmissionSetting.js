@@ -13,6 +13,16 @@ const AdmissionSettingSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  classFees: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
+  subjectFees: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
   updatedAt: {
     type: Date,
     default: Date.now,

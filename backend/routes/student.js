@@ -3,6 +3,7 @@ const Result = require('../models/Result');
 const Routine = require('../models/Routine');
 const Event = require('../models/Event');
 const StudentRequest = require('../models/StudentRequest');
+const RegistrationRequest = require('../models/RegistrationRequest');
 const ExamSheet = require('../models/ExamSheet');
 const jwt = require('jsonwebtoken');
 
@@ -138,15 +139,41 @@ router.post('/requests', authenticate, async (req, res) => {
     }
 });
 
-// Get my requests (excluding deleted)
+// Get my requests (excluding deleted) + Registration Requests (Promotions likely)
 router.get('/requests', authenticate, async (req, res) => {
     try {
-        const requests = await StudentRequest.find({ 
-            user: req.user.userId,
+        const userId = req.user.userId;
+        const user = await User.findById(userId);
+
+        // Fetch Support Requests
+        const supportRequests = await StudentRequest.find({ 
+            user: userId,
             isHiddenFromStudent: { $ne: true }
         }).sort({ createdAt: -1 });
-        res.json(requests);
+
+        // Fetch Registration/Promotion Requests linked to this student ID
+        let registrationRequests = [];
+        if (user && user.studentId) {
+            const regReqs = await RegistrationRequest.find({ previousStudentId: user.studentId });
+            
+            // Map to common structure
+            registrationRequests = regReqs.map(r => ({
+                id: r._id,
+                subject: r.applicationType === 'PROMOTION' ? `Promotion to Class ${r.class}` : `Application for Class ${r.class}`,
+                description: `Applied on ${new Date(r.createdAt).toLocaleDateString()}. Status: ${r.status}`,
+                type: 'APPLICATION',
+                status: r.status === 'ACCEPTED' ? 'APPROVED' : (r.status === 'REJECTED' ? 'DECLINED' : 'PENDING'),
+                adminComment: r.adminComment,
+                createdAt: r.createdAt
+            }));
+        }
+
+        // Combine and sort
+        const allRequests = [...supportRequests, ...registrationRequests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json(allRequests);
     } catch (error) {
+        console.error('Fetch Requests Error:', error);
         res.status(500).json({ error: 'Failed to fetch requests' });
     }
 });
@@ -194,6 +221,50 @@ router.get('/performance', authenticate, async (req, res) => {
         res.json(chartData);
     } catch (error) {
         res.status(500).json({ error: 'Failed' });
+    }
+});
+
+const Notice = require('../models/Notice');
+
+// Get Notices relevant to the student
+router.get('/notices', authenticate, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const commonCriteria = {
+            status: { $in: ['PUBLISHED', null] }, // Handle missing status
+            $or: [
+                { scheduledFor: { $exists: false } },
+                { scheduledFor: { $lte: new Date() } }
+            ]
+        };
+
+        const criteria = [
+            { targetType: 'ALL', ...commonCriteria }
+        ];
+        
+        if (user.class) {
+            criteria.push({ 
+                targetType: 'CLASS', 
+                targetId: { $regex: new RegExp(`^${user.class}$`, 'i') },
+                ...commonCriteria
+            });
+        }
+        
+        if (user.studentId) {
+            criteria.push({ 
+                targetType: 'STUDENT', 
+                targetId: { $regex: new RegExp(`^${user.studentId}$`, 'i') },
+                ...commonCriteria
+            });
+        }
+
+        const notices = await Notice.find({ $or: criteria }).sort({ createdAt: -1 });
+
+        res.json(notices);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch notices' });
     }
 });
 

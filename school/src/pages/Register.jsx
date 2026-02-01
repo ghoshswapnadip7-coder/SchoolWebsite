@@ -76,8 +76,46 @@ const Register = () => {
         }
     };
 
+    const [eligibility, setEligibility] = useState({ checked: false, loading: false, data: null });
+
+    const checkEligibility = async (sid) => {
+        if (!sid || sid.length < 5) return;
+        setEligibility({ ...eligibility, loading: true });
+        try {
+            const res = await fetch(`${API_URL}/auth/check-eligibility/${sid}`);
+            const data = await res.json();
+            if (res.ok) {
+                setEligibility({ checked: true, loading: false, data });
+                
+                // Pre-fill Logic
+                const updates = { name: data.studentName };
+                
+                // If promoting from Class-11, Lock Subjects for Class-12
+                if (data.currentClass === 'Class-11') {
+                     updates.stream = data.stream;
+                     updates.subjects = data.subjects;
+                     updates.className = 'Class-12'; // Auto-select Class 12
+                }
+                
+                setFormData(prev => ({ ...prev, ...updates }));
+            } else {
+                setEligibility({ checked: true, loading: false, data: { ...data, error: true } });
+            }
+        } catch (err) {
+            setEligibility({ checked: false, loading: false, data: null });
+        }
+    };
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Final eligibility check for promotion
+        if (appType === 'PROMOTION' && eligibility.data?.error) {
+            alert("Application Blocked: " + eligibility.data.message);
+            return;
+        }
+
         setLoading(true);
         setStatus(null);
 
@@ -100,7 +138,7 @@ const Register = () => {
                 setStatus({ type: 'success', message: data.message });
                 setGeneratedId(data.studentId);
             } else {
-                setStatus({ type: 'error', message: data.error });
+                setStatus({ type: 'error', message: data.error || data.message });
             }
         } catch (err) {
             setStatus({ type: 'error', message: 'Something went wrong. Please try again.' });
@@ -202,20 +240,65 @@ const Register = () => {
                 )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.2rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }}>
+                    {appType === 'PROMOTION' && (
                         <div style={{ display: 'grid', gap: '0.4rem' }}>
-                            <label>Full Name</label>
-                            <input required placeholder="E.g. John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            <label>Current Student ID</label>
+                            <div style={{ position: 'relative' }}>
+                                <input 
+                                    required 
+                                    placeholder="E.g. RPHS20250001" 
+                                    value={formData.previousStudentId} 
+                                    onChange={e => {
+                                        setFormData({...formData, previousStudentId: e.target.value.toUpperCase()});
+                                        if (eligibility.checked) setEligibility({ checked: false, loading: false, data: null });
+                                    }} 
+                                    onBlur={e => checkEligibility(e.target.value)}
+                                />
+                                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {eligibility.loading && <RefreshCw size={16} className="animate-spin" />}
+                                    {!eligibility.loading && eligibility.checked && !eligibility.data?.error && <CheckCircle size={16} color="#22c55e" />}
+                                    {eligibility.data?.error && <Info size={16} color="#ef4444" />}
+                                </div>
+                            </div>
+                            {eligibility.checked && eligibility.data?.error && (
+                                <div style={{ 
+                                    marginTop: '0.5rem', padding: '1rem', borderRadius: '12px', 
+                                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    color: '#ef4444', fontSize: '0.85rem'
+                                }}>
+                                    <div style={{ fontWeight: 800, marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Info size={16} /> Eligibility Warning
+                                    </div>
+                                    <p style={{ margin: 0, lineHeight: 1.4 }}>
+                                        {eligibility.data.message} <br />
+                                        <strong>{eligibility.data.details || 'Please contact the school office.'}</strong>
+                                    </p>
+                                </div>
+                            )}
+                            {eligibility.checked && !eligibility.data?.error && (
+                                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#22c55e', fontWeight: 600 }}>
+                                    ✓ Verified: {eligibility.data.studentName} ({eligibility.data.currentClass})
+                                </div>
+                            )}
                         </div>
-                        <div style={{ display: 'grid', gap: '0.4rem' }}>
-                            <label>Email</label>
-                            <input required type="email" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                    )}
+
+                    {appType === 'FRESH' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }}>
+                            <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                <label>Full Name</label>
+                                <input required placeholder="E.g. John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            </div>
+                            <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                <label>Email</label>
+                                <input required type="email" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }}>
                         <div style={{ display: 'grid', gap: '0.4rem' }}>
-                            <label>Target Class</label>
+                            <label>Promoting to Class</label>
                             <select required value={formData.className} onChange={e => setFormData({...formData, className: e.target.value})}>
                                 {admissionStatus.allowedClasses && admissionStatus.allowedClasses.length > 0 ? (
                                     admissionStatus.allowedClasses.map(cls => (
@@ -227,7 +310,7 @@ const Register = () => {
                             </select>
                         </div>
                         <div style={{ display: 'grid', gap: '0.4rem' }}>
-                            <label>Target Roll No</label>
+                            <label>Previous Roll No</label>
                             <input required type="number" placeholder="Roll No" value={formData.rollNumber} onChange={e => setFormData({...formData, rollNumber: e.target.value})} />
                         </div>
                     </div>
@@ -238,6 +321,13 @@ const Register = () => {
                                 <GraduationCap size={18} /> Stream & Subject Selection
                             </h3>
                             
+                            {eligibility.data?.currentClass === 'Class-11' && (
+                                <div style={{ padding: '10px', background: 'var(--surface-hover)', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                    <Info size={14} style={{ marginRight: '6px', verticalAlign: '-2px' }} />
+                                    Note: Stream and subjects are carried forward from Class 11 and cannot be changed for Class 12.
+                                </div>
+                            )}
+
                             <div style={{ marginBottom: '1.5rem' }}>
                                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>Select Stream</label>
                                 <div style={{ display: 'flex', gap: '1rem' }}>
@@ -245,14 +335,23 @@ const Register = () => {
                                         <label key={s} style={{ 
                                             flex: 1, padding: '1rem', 
                                             border: formData.stream === s ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
-                                            borderRadius: '12px', cursor: 'pointer',
+                                            borderRadius: '12px', cursor: eligibility.data?.currentClass === 'Class-11' ? 'not-allowed' : 'pointer',
                                             background: formData.stream === s ? 'var(--secondary)' : 'var(--surface)',
                                             color: formData.stream === s ? 'var(--primary)' : 'inherit',
                                             display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem',
                                             fontWeight: formData.stream === s ? 700 : 500,
-                                            transition: 'all 0.2s ease'
+                                            transition: 'all 0.2s ease',
+                                            opacity: (eligibility.data?.currentClass === 'Class-11' && formData.stream !== s) ? 0.5 : 1
                                         }}>
-                                            <input type="radio" name="stream" value={s} checked={formData.stream === s} onChange={() => setFormData({...formData, stream: s, subjects: ['Bengali', 'English']})} style={{ display: 'none' }} />
+                                            <input 
+                                                disabled={eligibility.data?.currentClass === 'Class-11'}
+                                                type="radio" 
+                                                name="stream" 
+                                                value={s} 
+                                                checked={formData.stream === s} 
+                                                onChange={() => setFormData({...formData, stream: s, subjects: ['Bengali', 'English']})} 
+                                                style={{ display: 'none' }} 
+                                            />
                                             {formData.stream === s && <CheckCircle size={18} />}
                                             {s}
                                         </label>
@@ -268,19 +367,26 @@ const Register = () => {
                                         <span style={{ padding: '0.4rem 0.8rem', background: 'var(--surface-hover)', borderRadius: '20px', fontSize: '0.8rem', opacity: 0.6 }}>English (Compulsory)</span>
                                         {(formData.stream === 'Science' ? ['Physics', 'Chemistry', 'Biology', 'Maths', 'COMS', 'AI'] : ['Political Science', 'History', 'Education', 'Computer Application', 'Sanskrit']).map(sub => (
                                             <label key={sub} style={{ 
-                                                padding: '0.4rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer',
+                                                padding: '0.4rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: '20px', fontSize: '0.8rem', 
+                                                cursor: eligibility.data?.currentClass === 'Class-11' ? 'not-allowed' : 'pointer',
                                                 background: formData.subjects.includes(sub) ? 'var(--secondary)' : 'var(--surface)',
-                                                color: formData.subjects.includes(sub) ? 'var(--primary)' : 'inherit'
+                                                color: formData.subjects.includes(sub) ? 'var(--primary)' : 'inherit',
+                                                opacity: (eligibility.data?.currentClass === 'Class-11' && !formData.subjects.includes(sub)) ? 0.5 : 1
                                             }}>
-                                                <input type="checkbox" checked={formData.subjects.includes(sub)} onChange={(e) => {
-                                                    const electives = formData.subjects.filter(s => !['Bengali', 'English'].includes(s));
-                                                    if (e.target.checked) {
-                                                        if (electives.length >= 4) return alert("Max 4 subjects");
-                                                        setFormData({...formData, subjects: [...formData.subjects, sub]});
-                                                    } else {
-                                                        setFormData({...formData, subjects: formData.subjects.filter(x => x !== sub)});
-                                                    }
-                                                }} style={{ display: 'none' }} />
+                                                <input 
+                                                    disabled={eligibility.data?.currentClass === 'Class-11'}
+                                                    type="checkbox" 
+                                                    checked={formData.subjects.includes(sub)} 
+                                                    onChange={(e) => {
+                                                        const electives = formData.subjects.filter(s => !['Bengali', 'English'].includes(s));
+                                                        if (e.target.checked) {
+                                                            if (electives.length >= 4) return alert("Max 4 subjects");
+                                                            setFormData({...formData, subjects: [...formData.subjects, sub]});
+                                                        } else {
+                                                            setFormData({...formData, subjects: formData.subjects.filter(x => x !== sub)});
+                                                        }
+                                                    }} style={{ display: 'none' }} 
+                                                />
                                                 {sub}
                                             </label>
                                         ))}
@@ -290,36 +396,33 @@ const Register = () => {
                         </div>
                     )}
 
-                    <div style={{ display: 'grid', gap: '0.4rem' }}>
-                        <label>Choose Secret Password</label>
-                        <div style={{ position: 'relative' }}>
-                            <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input required type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ paddingLeft: '2.5rem' }} />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    {appType === 'PROMOTION' ? (
-                        <div style={{ display: 'grid', gap: '0.4rem' }}>
-                            <label>Previous Student ID</label>
-                            <input required placeholder="E.g. RPHS20250001" value={formData.previousStudentId} onChange={e => setFormData({...formData, previousStudentId: e.target.value})} />
-                        </div>
-                    ) : (
-                        <div style={{ marginTop: '1rem', background: 'var(--background)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-                            <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FileText size={18} /> Upload Documents
-                            </h3>
-                            <div style={{ display: 'grid', gap: '1rem' }}>
-                                {['aadharCard', 'pastMarksheet', 'birthCertificate', 'transferCertificate'].map(doc => (
-                                    <div key={doc} style={{ display: 'grid', gap: '0.4rem' }}>
-                                        <label style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}>{doc.replace(/([A-Z])/g, ' $1')} {formData.documents[doc] && <span style={{ color: '#22c55e' }}>✓ Uploaded</span>}</label>
-                                        <input required={doc === 'aadharCard' || doc === 'pastMarksheet'} type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], `documents.${doc}`)} />
-                                    </div>
-                                ))}
+                    {appType === 'FRESH' && (
+                        <>
+                            <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                <label>Choose Secret Password</label>
+                                <div style={{ position: 'relative' }}>
+                                    <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input required type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ paddingLeft: '2.5rem' }} />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+
+                            <div style={{ marginTop: '1rem', background: 'var(--background)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FileText size={18} /> Upload Documents
+                                </h3>
+                                <div style={{ display: 'grid', gap: '1rem' }}>
+                                    {['aadharCard', 'pastMarksheet', 'birthCertificate', 'transferCertificate'].map(doc => (
+                                        <div key={doc} style={{ display: 'grid', gap: '0.4rem' }}>
+                                            <label style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}>{doc.replace(/([A-Z])/g, ' $1')} {formData.documents[doc] && <span style={{ color: '#22c55e' }}>✓ Uploaded</span>}</label>
+                                            <input required={doc === 'aadharCard' || doc === 'pastMarksheet'} type="file" accept="image/*,application/pdf" onChange={e => handleFileUpload(e.target.files[0], `documents.${doc}`)} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     <button disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', marginTop: '1rem', fontWeight: 800 }}>

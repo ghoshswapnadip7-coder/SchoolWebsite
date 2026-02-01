@@ -14,6 +14,10 @@ const ResultSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    projectMarks: {
+        type: Number,
+        default: 0
+    },
     grade: {
         type: String,
         required: true

@@ -53,7 +53,8 @@ const generateResultPDF = (student, results, semester) => {
         // --- Result Table ---
         const tableTop = doc.y + 10;
         const colSubject = 60;
-        const colMarks = 300;
+        const colMarks = 250;
+        const colProject = 310;
         const colGrade = 380;
         const colExam = 460;
         
@@ -62,7 +63,8 @@ const generateResultPDF = (student, results, semester) => {
         doc.fillColor('#334155').font('Helvetica-Bold').fontSize(9);
         
         doc.text('SUBJECT', colSubject, tableTop + 8);
-        doc.text('MARKS', colMarks, tableTop + 8);
+        doc.text('TH.', colMarks, tableTop + 8);
+        doc.text('PR.', colProject, tableTop + 8);
         doc.text('GRADE', colGrade, tableTop + 8);
         doc.text('EXAM', colExam, tableTop + 8);
         
@@ -70,12 +72,7 @@ const generateResultPDF = (student, results, semester) => {
         doc.font('Helvetica').fontSize(10).fillColor('#333');
 
         // Logic for Total Calculation (Best of 5 if > 5 subjects, else Sum)
-        // Note: For display, we list all. For Total, we apply simple Best of 5 logic if applicable
-        // Sorting results to identify best scores (assuming typical rule implies excluding lowest optional)
-        // For simplicity: We will sum everything if <= 5. If > 5, sum top 5.
-        // Or strictly follow standard: Total / 500 implies 5 subjects counted.
-        
-        const numericResults = results.map(r => ({ ...r, numMarks: Number(r.marks) }));
+        const numericResults = results.map(r => ({ ...r, numMarks: Number(r.marks) + Number(r.projectMarks || 0) }));
         let totalMarks = 0;
         let totalSubjectsCount = 0;
         let sortedMarks = [...numericResults].sort((a, b) => b.numMarks - a.numMarks);
@@ -106,12 +103,11 @@ const generateResultPDF = (student, results, semester) => {
             // Zebra striping
             if (i % 2 !== 0) {
                  doc.fillColor('#f8fafc').rect(40, position - 5, 515, 25).fill();
-            } else {
-                 // doc.strokeColor('#eee').moveTo(40, position + 20).lineTo(555, position + 20).stroke(); // Row line
             }
 
             doc.fillColor('#333').text(result.subject, colSubject, position);
             doc.text(result.marks, colMarks, position);
+            doc.text(result.projectMarks || 0, colProject, position);
             doc.text(result.grade, colGrade, position);
             doc.text(semester, colExam, position); // Using semester/exam name passed
 
@@ -159,4 +155,62 @@ const generateResultPDF = (student, results, semester) => {
     });
 };
 
-module.exports = { generateResultPDF };
+const generateNoticePDF = (notice) => {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        let buffers = [];
+        
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+            let pdfData = Buffer.concat(buffers);
+            resolve(pdfData);
+        });
+
+        // --- Header ---
+        doc.font('Helvetica-Bold').fontSize(18)
+           .text('RANAGHAT PAL CHOWDHURY HIGH (H.S.) SCHOOL', { align: 'center' });
+        
+        doc.moveDown(0.3);
+        doc.font('Helvetica').fontSize(10).fillColor('#64748b')
+           .text('Estd: 1853 | Official School Notice', { align: 'center' });
+        
+        doc.moveDown(0.5);
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#e2e8f0').lineWidth(1).stroke();
+        doc.moveDown(1.5);
+
+        // --- Date & Ref ---
+        doc.font('Helvetica').fontSize(10).fillColor('#334155');
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, { align: 'right' });
+        doc.moveDown(1);
+
+        // --- Title ---
+        doc.font('Helvetica-Bold').fontSize(14).fillColor('#0f172a')
+           .text(notice.title.toUpperCase(), { align: 'center', underline: true });
+        
+        doc.moveDown(2);
+
+        // --- Content ---
+        doc.font('Helvetica').fontSize(11).fillColor('#334155').lineGap(5)
+           .text(notice.content, {
+               align: 'justify',
+               indent: 20
+           });
+
+        doc.moveDown(4);
+
+        // --- Signature ---
+        const sigY = doc.y;
+        doc.strokeColor('#333').lineWidth(0.5).moveTo(380, sigY).lineTo(520, sigY).stroke();
+        doc.moveDown(0.5);
+        doc.font('Helvetica-Bold').fontSize(11)
+           .text('Principal / Administrator', 380, sigY + 5, { width: 140, align: 'center' });
+
+        // --- Footer ---
+        doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+           .text('Ranaghat, West Bengal 741201 | Official Notice Document', 50, 780, { align: 'center', width: 495 });
+
+        doc.end();
+    });
+};
+
+module.exports = { generateResultPDF, generateNoticePDF };
