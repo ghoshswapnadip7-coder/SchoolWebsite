@@ -91,6 +91,46 @@ router.delete('/students/:id', authenticateAdmin, async (req, res) => {
     }
 });
 
+// --- Teacher Management ---
+
+// Get all teachers
+router.get('/teachers', authenticateAdmin, async (req, res) => {
+    try {
+        const teachers = await User.find({ role: 'TEACHER' }).select('-password').sort({ createdAt: -1 });
+        res.json(teachers);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch teachers' });
+    }
+});
+
+// Add new teacher
+router.post('/teachers', authenticateAdmin, async (req, res) => {
+    try {
+        const { name, email, password, subjects, bio } = req.body;
+        
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(400).json({ error: 'Email already exists' });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Handle subjects (string to array if needed)
+        const subjectList = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
+
+        const teacher = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: 'TEACHER',
+            subjects: subjectList,
+            bio
+        });
+
+        res.status(201).json(teacher);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create teacher' });
+    }
+});
+
 // --- Result Management ---
 
 // Get results for a specific student

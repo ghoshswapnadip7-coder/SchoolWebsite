@@ -78,7 +78,13 @@ const Login = () => {
             }
 
             login(data.user, data.token);
-            navigate('/dashboard');
+            if (data.user.role === 'ADMIN') {
+                navigate('/admin-dashboard');
+            } else if (data.user.role === 'TEACHER') {
+                navigate('/teacher-dashboard');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err) {
             setError(err.message);
         } finally {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Target, Lightbulb, Users, Award, ShieldCheck, History } from 'lucide-react';
 
-const About = () => {
+const About = ({ schoolConfig }) => {
     return (
         <div className="main">
             <section style={{
@@ -15,7 +15,7 @@ const About = () => {
                 <div className="container">
                     <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Our Legacy of Excellence</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '850px', margin: '0 auto', opacity: 0.9, lineHeight: 1.6 }}>
-                        Serving the community since 1853, Ranaghat Pal Chowdhury High (H.S.) School is dedicated to nurturing future leaders through holistic education and moral integrity.
+                        Serving the community since {schoolConfig.foundedYear}, {schoolConfig.name} is dedicated to nurturing future leaders through holistic education and moral integrity.
                     </p>
                 </div>
             </section>
@@ -44,9 +44,9 @@ const About = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--secondary)', fontWeight: 600, marginBottom: '1rem' }}>
                                 <History size={20} /> OUR HISTORY
                             </div>
-                            <h2 style={{ color: 'var(--text-main)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of 150+ Years</h2>
+                            <h2 style={{ color: 'var(--text-main)', fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>A Journey of {new Date().getFullYear() - parseInt(schoolConfig.foundedYear)}+ Years</h2>
                             <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '1.1rem', lineHeight: 1.8 }}>
-                                What started as a vision to education by local visionaries in 1853 has now transformed into a premier educational institution. Our school has been a witness to the success stories of generations of alumni.
+                                What started as a vision to education by local visionaries in {schoolConfig.foundedYear} has now transformed into a premier educational institution. Our school has been a witness to the success stories of generations of alumni.
                             </p>
                             <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: 1.8 }}>
                                 We bridge the gap between traditional values and modern innovation, ensuring our students are prepared for the challenges of the 21st century.
@@ -145,7 +145,7 @@ const About = () => {
                             backgroundColor: 'var(--secondary)',
                             borderRadius: '50%',
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: 'center', 
                             justifyContent: 'center',
                             color: 'white',
                             fontSize: '2rem'
@@ -154,8 +154,8 @@ const About = () => {
                             "We don't just teach subjects; we inspire young minds to question the world and create their own paths. Our goal is excellence in every sphere of life."
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '1.25rem' }}>Mr. Susmit Narayan Kundu</div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>HEADMASTER, Ranaghat P.C.H(H.S).SCHOOL</div>
+                            <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '1.25rem' }}>{schoolConfig.headmaster}</div>
+                            <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>HEADMASTER, {schoolConfig.name}</div>
                         </div>
                     </div>
                 </div>

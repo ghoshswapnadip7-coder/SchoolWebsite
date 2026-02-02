@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import './Navbar.css';
 
-const Navbar = () => {
+const Navbar = ({ schoolConfig }) => {
     const { user } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
@@ -17,7 +17,7 @@ const Navbar = () => {
         <nav className="navbar">
             <div className="container navbar-container">
                 <Link to="/" className="logo" onClick={closeMenu}>
-                    Ranaghat P.C.H(H.S).SCHOOL
+                    {schoolConfig.name}
                 </Link>
 
                 <button className="menu-btn" onClick={toggleMenu} aria-label="Toggle Menu">
@@ -34,9 +34,15 @@ const Navbar = () => {
                         <NavLink to="/events" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Events">Events</NavLink>
                         <NavLink to="/toppers" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Toppers">Toppers</NavLink>
                         <NavLink to="/contact" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Contact">Contact</NavLink>
+                        <NavLink to="/all-teachers" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Our Teachers">Teachers</NavLink>
                         {user && (
-                            <NavLink to={user.role === 'ADMIN' ? "/admin-dashboard" : "/dashboard"} className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title={user.role === 'ADMIN' ? "Admin Panel" : "Dashboard"}>
-                                {user.role === 'ADMIN' ? "Admin Panel" : "Dashboard"}
+                            <NavLink 
+                                to={user.role === 'ADMIN' ? "/admin-dashboard" : user.role === 'TEACHER' ? "/teacher-dashboard" : "/dashboard"} 
+                                className={({ isActive }) => isActive ? "link active" : "link"} 
+                                onClick={closeMenu} 
+                                title={user.role === 'ADMIN' ? "Admin Panel" : user.role === 'TEACHER' ? "Teacher Portal" : "Student Dashboard"}
+                            >
+                                {user.role === 'ADMIN' ? "Admin Panel" : user.role === 'TEACHER' ? "Teacher Portal" : "Dashboard"}
                             </NavLink>
                         )}
                     </div>
@@ -51,7 +57,7 @@ const Navbar = () => {
                         </button>
                         {!user && <NavLink to="/register" className={({ isActive }) => isActive ? "link active" : "link"} onClick={closeMenu} title="Register">Register</NavLink>}
                         {user ? (
-                            <Link to={user.role === 'ADMIN' ? "/admin-dashboard" : "/dashboard"} className="btn btn-primary" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Link to={user.role === 'ADMIN' ? "/admin-dashboard" : user.role === 'TEACHER' ? "/teacher-dashboard" : "/dashboard"} className="btn btn-primary" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <User size={18} /> {user.role === 'ADMIN' ? "Admin" : "Profile"}
                             </Link>
                         ) : (

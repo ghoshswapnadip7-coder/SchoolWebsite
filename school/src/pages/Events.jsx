@@ -2,7 +2,7 @@ import { API_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { Calendar, MapPin, Search, Filter, AlertCircle, ArrowRight } from 'lucide-react';
 
-const Events = () => {
+const Events = ({ schoolConfig }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

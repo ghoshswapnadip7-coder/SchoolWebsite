@@ -9,7 +9,7 @@ import {
     CreditCard, Download, Printer, ShieldAlert, Smartphone, Banknote, ChevronRight, FileText, MessageSquare
 } from 'lucide-react';
 
-const Dashboard = () => {
+const Dashboard = ({ schoolConfig }) => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
@@ -127,7 +127,7 @@ const Dashboard = () => {
                     <div class="bill-container">
                         <div class="header">
                             <div>
-                                <h1>Ranaghat P.C.H(H.S).SCHOOL</h1>
+                                <h1>${schoolConfig.name}</h1>
                                 <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Official Payment Receipt</p>
                             </div>
                             <div class="status">PAID SUCCESSFUL</div>
@@ -146,7 +146,7 @@ const Dashboard = () => {
                         </div>
                         <div class="footer">
                             <p>This is a computer-generated receipt and does not require a physical signature.</p>
-                            <p>Ranaghat, West Bengal 741201 | info@rphs.edu.in</p>
+                            <p>${schoolConfig.address} | ${schoolConfig.email}</p>
                         </div>
                     </div>
                     <script>window.onload = () => { window.print(); window.close(); }</script>
@@ -314,8 +314,8 @@ const Dashboard = () => {
                 </head>
                 <body>
                     <div class="header">
-                        <h1>Ranaghat Pal Chowdhury High (H.S.) School</h1>
-                        <p>Estd: 1853 | Annual Report Card | 2024-25</p>
+                        <h1>${schoolConfig.name}</h1>
+                        <p>Estd: ${schoolConfig.foundedYear} | Annual Report Card | 2024-25</p>
                     </div>
                     <div class="info-grid">
                         <div><strong>Name:</strong> ${profile?.name}</div>

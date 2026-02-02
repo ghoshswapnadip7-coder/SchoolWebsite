@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const Home = () => {
+const Home = ({ schoolConfig }) => {
     const [stats, setStats] = useState({ students: 0, teachers: 0, alumni: 0 });
 
     useEffect(() => {
@@ -35,13 +35,13 @@ const Home = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '4rem', alignItems: 'center' }}>
                         <div>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--secondary)', padding: '0.5rem 1rem', borderRadius: '2rem', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
-                                <Star size={16} fill="var(--secondary)" /> EXCELLENCE IN EDUCATION SINCE 1853
+                                <Star size={16} fill="var(--secondary)" /> EXCELLENCE IN EDUCATION SINCE {schoolConfig.foundedYear}
                             </div>
                             <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: '1.5rem', color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-                                Shaping Minds, <span style={{ color: 'var(--secondary)' }}>Building Futures</span>
+                                Shaping Minds, <span style={{ color: 'var(--secondary)' }}>Building <br /> Futures</span>
                             </h1>
                             <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: '600px' }}>
-                                Join one of the oldest and most prestigious educational institutions in West Bengal. Providing quality education for over 170 years.
+                                {schoolConfig.description}
                             </p>
                             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
                                 <Link to="/register" className="btn btn-secondary" style={{ padding: '1rem 2.5rem', fontSize: '1.1rem' }}>Admission 2025-26</Link>
@@ -54,7 +54,7 @@ const Home = () => {
                                 <div style={{ position: 'absolute', bottom: '2rem', left: '2rem', right: '2rem', background: 'rgba(15, 23, 42, 0.8)', padding: '1.5rem', borderRadius: '1.5rem', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
                                     <div style={{ display: 'flex', gap: '1.5rem' }}>
                                         <div>
-                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--secondary)' }}>170+</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--secondary)' }}>{new Date().getFullYear() - parseInt(schoolConfig.foundedYear)}+</div>
                                             <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Years Legacy</div>
                                         </div>
                                         <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
@@ -74,7 +74,7 @@ const Home = () => {
             <section style={{ padding: '8rem 1rem' }}>
                 <div className="container">
                     <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
-                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: 'var(--text-main)' }}>Why Choose Ranaghat P.C.H.S?</h2>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: 'var(--text-main)' }}>Why Choose {schoolConfig.name}?</h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Combining traditional values with modern learning methodologies.</p>
                     </div>
 

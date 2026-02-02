@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock } from 'lucide-react';
 
-const Contact = () => {
+const Contact = ({ schoolConfig }) => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -31,9 +31,9 @@ const Contact = () => {
                 textAlign: 'center'
             }}>
                 <div className="container">
-                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Contact Us</h1>
+                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Contact {schoolConfig.name}</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '800px', margin: '0 auto', opacity: 0.9 }}>
-                        Have questions? We're here to help. Reach out to us for admissions, feedback, or general inquiries.
+                        {schoolConfig.description}
                     </p>
                 </div>
             </section>
@@ -53,7 +53,6 @@ const Contact = () => {
                                     <div style={{ 
                                         width: '50px', 
                                         height: '50px', 
-                                        height: '50px', 
                                         borderRadius: '1rem', 
                                         backgroundColor: 'var(--surface-hover)', 
                                         display: 'flex', 
@@ -66,14 +65,13 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Visit Us</h4>
-                                        <p style={{ color: 'var(--text-muted)' }}>5HH6+FW8, School Lane,<br />Ranaghat, West Bengal 741201</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>{schoolConfig.address}</p>
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '1.5rem' }}>
                                     <div style={{ 
                                         width: '50px', 
-                                        height: '50px', 
                                         height: '50px', 
                                         borderRadius: '1rem', 
                                         backgroundColor: 'var(--surface-hover)', 
@@ -87,14 +85,13 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Call Us</h4>
-                                        <p style={{ color: 'var(--text-muted)' }}>+91 94344 19453<br />+91 0000000000</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>{schoolConfig.phone}</p>
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '1.5rem' }}>
                                     <div style={{ 
                                         width: '50px', 
-                                        height: '50px', 
                                         height: '50px', 
                                         borderRadius: '1rem', 
                                         backgroundColor: 'var(--surface-hover)', 
@@ -108,14 +105,13 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Email Us</h4>
-                                        <p style={{ color: 'var(--text-muted)' }}>info@ranaghatpalchowdhury.edu.in<br />office@rphs.edu.in</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>{schoolConfig.email}</p>
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '1.5rem' }}>
                                     <div style={{ 
                                         width: '50px', 
-                                        height: '50px', 
                                         height: '50px', 
                                         borderRadius: '1rem', 
                                         backgroundColor: 'var(--surface-hover)', 

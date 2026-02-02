@@ -12,12 +12,14 @@
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  
+
   --shadow-color: rgb(0 0 0 / 0.1);
   --shadow-sm: 0 1px 2px 0 var(--shadow-color);
-  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
-  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
-  
+  --shadow-md:
+    0 4px 6px -1px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
+  --shadow-lg:
+    0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
+
   --btn-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1);
   --btn-glow: 0 0 15px rgba(234, 179, 8, 0.3);
 
@@ -25,15 +27,15 @@
   --footer-bg: #0f172a;
   --footer-text: #ffffff;
 
-  --font-heading: 'Inter', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-heading: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
 }
 
-[data-theme='dark'] {
+[data-theme="dark"] {
   --primary: #f8fafc;
   --primary-light: #e2e8f0;
   --secondary: #facc15;
@@ -46,16 +48,16 @@
   --text-main: #f8fafc;
   --text-muted: #cbd5e1;
   --border-color: #2d3748;
-  
+
   --shadow-color: rgb(0 0 0 / 0.5);
 
   --header-bg: rgba(15, 23, 42, 0.95);
-  --footer-bg: #030712; 
+  --footer-bg: #030712;
   --footer-text: #f8fafc;
 
   --btn-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   --btn-glow: 0 0 20px rgba(234, 179, 8, 0.2);
-  
+
   /* Specific override for dark mode buttons since primary/secondary flip */
   --btn-primary-bg: #f8fafc;
   --btn-primary-text: #0f172a;
@@ -63,7 +65,7 @@
   --btn-secondary-text: #0f172a;
 }
 
-:root:not([data-theme='dark']) {
+:root:not([data-theme="dark"]) {
   --btn-primary-bg: var(--primary);
   --btn-primary-text: #ffffff;
   --btn-secondary-bg: var(--secondary);
@@ -74,7 +76,9 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 body {
@@ -83,10 +87,43 @@ body {
   font-family: var(--font-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
-h1, h2, h3, h4, h5, h6 {
+/* Custom Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 10px;
+  border: 2px solid var(--background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--background);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading);
   line-height: 1.2;
   font-weight: 700;
@@ -172,29 +209,38 @@ a {
 }
 
 /* Form Elements Styling */
-input, select, textarea {
+input,
+select,
+textarea {
   width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-main);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   outline: none !important;
   appearance: none;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: var(--secondary);
   outline: none !important;
   box-shadow: none !important;
 }
 
-input:hover, select:hover, textarea:hover {
+input:hover,
+select:hover,
+textarea:hover {
   border-color: var(--secondary);
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--text-muted);
 }
 
@@ -236,16 +282,21 @@ label {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
-  html, body {
+  html,
+  body {
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   .container {
     padding: 0 1rem;
     width: 100%;
@@ -253,11 +304,11 @@ label {
 
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
-      display: none;
+    display: none;
   }
   /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar {
-      -ms-overflow-style: none;  /* IE and Edge */
-      scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 }

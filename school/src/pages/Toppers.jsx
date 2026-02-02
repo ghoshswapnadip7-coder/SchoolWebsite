@@ -2,7 +2,7 @@ import { API_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { Award, Filter, AlertCircle, X, ChevronRight, Play, Info } from 'lucide-react';
 
-const Toppers = () => {
+const Toppers = ({ schoolConfig }) => {
     const [toppers, setToppers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

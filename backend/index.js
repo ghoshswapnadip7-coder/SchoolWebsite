@@ -34,6 +34,8 @@ app.use('/api/events', eventRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/toppers', topperRoutes);
+app.use('/api/teacher', require('./routes/teacher'));
+app.use('/api/public', require('./routes/public'));
 
 app.use('/api/upload', require('./routes/upload'));
 

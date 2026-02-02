@@ -188,7 +188,7 @@ const useMobile = () => {
 };
 
 // Reusable Student List Component (Desktop: Table, Mobile: Cards)
-const StudentList = ({ students, onSelect, actionLabel }) => {
+const StudentList = ({ students, onSelect, actionLabel, onBlock }) => {
     const isMobile = useMobile();
 
     if (!students || students.length === 0) {
@@ -207,7 +207,23 @@ const StudentList = ({ students, onSelect, actionLabel }) => {
                             <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</h4>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.studentId} • Class {s.class || s.className?.split('-')[1]}</div>
                         </div>
-                        <ChevronRight size={20} color="#cbd5e1" />
+                        {onBlock ? (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onBlock(s); }}
+                                style={{
+                                    padding: '8px', 
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: s.isRestricted ? '#fee2e2' : '#f1f5f9',
+                                    color: s.isRestricted ? '#ef4444' : '#64748b',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {s.isRestricted ? <Unlock size={20} /> : <Lock size={20} />}
+                            </button>
+                        ) : (
+                            <ChevronRight size={20} color="#cbd5e1" />
+                        )}
                     </div>
                 ))}
             </div>
@@ -241,9 +257,45 @@ const StudentList = ({ students, onSelect, actionLabel }) => {
                             </span>
                         </td>
                         <td style={{ padding: '12px 16px' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {actionLabel || 'Manage'} <ChevronRight size={14} />
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ 
+                                    fontSize: '0.8rem', 
+                                    fontWeight: 600, 
+                                    color: 'var(--secondary)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '6px',
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    background: 'var(--surface-hover)',
+                                    border: '1px solid transparent'
+                                }}>
+                                    {actionLabel || 'Manage'} <ChevronRight size={14} />
+                                </span>
+                                {onBlock && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onBlock(s); }}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            border: s.isRestricted ? '1px solid #fecaca' : '1px solid var(--border-color)',
+                                            background: s.isRestricted ? '#fef2f2' : 'transparent',
+                                            color: s.isRestricted ? '#ef4444' : '#64748b',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        title={s.isRestricted ? "Click to Activate" : "Click to Restrict Access"}
+                                    >
+                                        {s.isRestricted ? <Unlock size={14} /> : <Lock size={14} />}
+                                        {s.isRestricted ? 'Unblock' : 'Restrict'}
+                                    </button>
+                                )}
+                            </div>
                         </td>
                     </tr>
                 ))}
@@ -265,6 +317,7 @@ const AdminDashboard = () => {
     const [galleryItems, setGalleryItems] = useState([]);
     const [events, setEvents] = useState([]);
     const [students, setStudents] = useState([]);
+    const [teachers, setTeachers] = useState([]);
     const [routines, setRoutines] = useState([]);
     const [regRequests, setRegRequests] = useState([]);
     const [studentRequests, setStudentRequests] = useState([]);
@@ -295,6 +348,7 @@ const AdminDashboard = () => {
     const [newGalleryItem, setNewGalleryItem] = useState({ title: '', imageUrl: '', description: '', category: '' });
     const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', location: '', imageUrl: '' });
     const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '', studentId: '', className: 'Class-10', rollNumber: '', profilePic: '' });
+    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '', subjects: '', bio: '' });
     const [studentSearch, setStudentSearch] = useState('');
     const [routineForm, setRoutineForm] = useState({ periods: [{ subject: '', teacher: '', startTime: '', endTime: '', room: '' }] });
     const [resultForm, setResultForm] = useState({ subject: '', marks: '', projectMarks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' });
@@ -329,6 +383,7 @@ const AdminDashboard = () => {
     // Mobile Navigation Tabs configuration (Dependent on Data State)
     const mobileTabs = [
         { id: 'students', label: 'Students', icon: Users },
+        { id: 'teachers', label: 'Teachers', icon: User },
         { id: 'results', label: 'Results', icon: Award },
         { id: 'fees', label: 'Fees', icon: CreditCard },
         { id: 'queries', label: 'Queries', icon: Bell, badge: studentRequests.filter(r => r.status === 'PENDING').length },
@@ -386,7 +441,7 @@ const AdminDashboard = () => {
                 }
             };
 
-            const [resGallery, resEvents, resStudents, resRoutines, resRegRequests, resStudentRequests, resPayments, resAdmissionSettings, resToppers, resExamSheets, resNotices] = await Promise.all([
+            const [resGallery, resEvents, resStudents, resRoutines, resRegRequests, resStudentRequests, resPayments, resAdmissionSettings, resToppers, resExamSheets, resNotices, resTeachers] = await Promise.all([
                 fetch(`${API_URL}/gallery`).then(res => res.ok ? res.json() : []).catch(() => []),
                 fetch(`${API_URL}/events`).then(res => res.ok ? res.json() : []).catch(() => []),
                 fetchJSON(`${API_URL}/admin/students`),
@@ -397,7 +452,8 @@ const AdminDashboard = () => {
                 fetchJSON(`${API_URL}/admin/admission-settings`),
                 fetchJSON(`${API_URL}/admin/toppers`),
                 fetchJSON(`${API_URL}/admin/exam-sheets`),
-                fetchJSON(`${API_URL}/admin/notices/list`)
+                fetchJSON(`${API_URL}/admin/notices/list`),
+                fetchJSON(`${API_URL}/admin/teachers`)
             ]);
 
             setGalleryItems(Array.isArray(resGallery) ? resGallery : []);
@@ -409,7 +465,9 @@ const AdminDashboard = () => {
             setPayments(Array.isArray(resPayments) ? resPayments : []);
             setToppers(Array.isArray(resToppers) ? resToppers : []);
             setExamSheets(Array.isArray(resExamSheets) ? resExamSheets : []);
+            setExamSheets(Array.isArray(resExamSheets) ? resExamSheets : []);
             setNotices(Array.isArray(resNotices) ? resNotices : []);
+            setTeachers(Array.isArray(resTeachers) ? resTeachers : []);
 
             // Handle Admission Settings
             if (resAdmissionSettings) {
@@ -557,6 +615,27 @@ const AdminDashboard = () => {
             alert('Error connecting to server');
         } finally {
             setProcessingAction(null);
+        }
+    };
+
+    const handleAddTeacher = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`${API_URL}/admin/teachers`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify(newTeacher)
+            });
+            if (res.ok) {
+                alert('Teacher added successfully!');
+                fetchData();
+                setNewTeacher({ name: '', email: '', password: '', subjects: '', bio: '' });
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to add teacher');
+            }
+        } catch (err) {
+            alert('Error connecting to server');
         }
     };
 
@@ -906,6 +985,7 @@ const AdminDashboard = () => {
                     <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: '4px' }}>
                         {[
                             { id: 'students', label: 'Students', icon: Users },
+                            { id: 'teachers', label: 'Teachers', icon: User },
                             { id: 'results', label: 'E-Results', icon: Award },
                             { id: 'fees', label: 'Fees & Payments', icon: CreditCard },
                             { id: 'admission', label: 'Admission Launch', icon: Rocket },
@@ -1063,7 +1143,65 @@ const AdminDashboard = () => {
                                     .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.studentId.includes(studentSearch))} 
                                  onSelect={(s) => { setActiveTab('results'); setSelectedStudent(s); setResultForm(prev => ({...prev, className: s.class})); }}
                                 actionLabel="View Results"
+                                onBlock={handleToggleBlock}
                             />
+                        </div>
+                    )}
+
+                    {/* TEACHERS */}
+                    {activeTab === 'teachers' && (
+                        <div style={{ padding: isMobile ? '1rem' : '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                                <h2 style={{ fontSize: isMobile ? '1.5rem' : '1.8rem' }}>Teacher Directory</h2>
+                                <span style={{ color: 'var(--text-muted)' }}>Total: {teachers.length}</span>
+                            </div>
+
+                            <form onSubmit={handleAddTeacher} style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr 1fr 1.5fr 1fr auto', 
+                                gap: '0.75rem', 
+                                marginBottom: '2rem', 
+                                padding: '1.25rem', 
+                                background: 'var(--surface-hover)', 
+                                borderRadius: '16px',
+                                border: '1px solid var(--border-color)',
+                                alignItems: 'center'
+                            }}>
+                                <h3 style={{ gridColumn: '1/-1', fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--text-muted)', fontWeight: 600 }}>Register New Teacher</h3>
+                                <input required placeholder="Full Name" value={newTeacher.name} onChange={e => setNewTeacher({...newTeacher, name: e.target.value})} />
+                                <input required type="email" placeholder="Email" value={newTeacher.email} onChange={e => setNewTeacher({...newTeacher, email: e.target.value})} />
+                                <input required type="password" placeholder="Initial Password" value={newTeacher.password} onChange={e => setNewTeacher({...newTeacher, password: e.target.value})} />
+                                <input required placeholder="Subjects (comma sep)" value={newTeacher.subjects} onChange={e => setNewTeacher({...newTeacher, subjects: e.target.value})} />
+                                <button type="submit" className="btn btn-primary" style={{ height: '42px' }}><Plus size={20} /></button>
+                            </form>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                                {teachers.map(t => (
+                                    <div key={t._id || t.id} style={{ background: 'var(--surface)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                            <img 
+                                                src={t.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                                                alt={t.name} 
+                                                style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--surface-hover)' }}
+                                            />
+                                            <div>
+                                                <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{t.name}</h4>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>{t.email}</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ background: 'var(--surface-hover)', padding: '10px', borderRadius: '8px' }}>
+                                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>SUBJECTS</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                {t.subjects && t.subjects.map((sub, idx) => (
+                                                    <span key={idx} style={{ fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{sub}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {teachers.length === 0 && <p style={{ color: 'var(--text-muted)', gridColumn: '1/-1', textAlign: 'center' }}>No teachers registered yet.</p>}
+                            </div>
                         </div>
                     )}
 

@@ -2,7 +2,7 @@ import { API_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { ImageIcon, Maximize2, Filter, AlertCircle, Camera } from 'lucide-react';
 
-const Gallery = () => {
+const Gallery = ({ schoolConfig }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -41,7 +41,7 @@ const Gallery = () => {
                 <div className="container">
                     <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem', color: 'white' }}>Visual Journey</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '800px', margin: '0 auto', opacity: 0.9 }}>
-                        Capturing the spirit of Ranaghat Pal Chowdhury High (H.S.) School through moments of learning, sports, and celebrations.
+                        Capturing the spirit of {schoolConfig.name} through moments of learning, sports, and celebrations.
                     </p>
                 </div>
             </section>

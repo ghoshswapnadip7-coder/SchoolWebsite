@@ -58,6 +58,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
   },
+  coverImage: {
+    type: String,
+    default: 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=1080&q=80' 
+  },
   blockReason: {
     type: String
   },
@@ -65,6 +69,33 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // Teacher Specific Fields
+  bio: { type: String }, // For "About Me"
+  achievements: [{ type: String }], // List of awards/achievements
+  socialLinks: {
+    linkedIn: String,
+    twitter: String,
+    instagram: String,
+    facebook: String
+  },
+  gallery: [{ // For "Vlogs", "Photos"
+    type: { type: String, enum: ['IMAGE', 'VIDEO'], default: 'IMAGE' },
+    url: String,
+    caption: String
+  }],
+  vlogs: [{
+    title: String,
+    description: String,
+    videoUrl: String,
+    date: { type: Date, default: Date.now }
+  }],
+  blogs: [{
+    title: String,
+    content: String,
+    image: String,
+    date: { type: Date, default: Date.now },
+    likes: { type: Number, default: 0 }
+  }],
 });
 
 // Virtual for id to match Prisma's output if needed

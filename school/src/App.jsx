@@ -8,6 +8,9 @@ import Events from './pages/Events';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import TeacherDashboard from './pages/TeacherDashboard';
+import Teachers from './pages/Teachers';
+import TeacherProfile from './pages/TeacherProfile';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Register from './pages/Register';
@@ -24,23 +27,35 @@ function AppLayout() {
   const location = useLocation();
   const isAdminDashboard = location.pathname === '/admin-dashboard';
 
+  const schoolConfig = {
+    name: "ABC School",
+    description: "This is a School Description",
+    foundedYear: "0000",
+    address: "ABC Street, City, State, Zip",
+    phone: "+91 0000000000",
+    email: "info@abcschool.com",
+    headmaster: "ABC Headmaster"
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar />
+      <Navbar schoolConfig={schoolConfig} />
       <main style={{ flex: 1 }}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/events" element={<Events />} />
+          <Route path="/" element={<Home schoolConfig={schoolConfig} />} />
+          <Route path="/about" element={<About schoolConfig={schoolConfig} />} />
+          <Route path="/gallery" element={<Gallery schoolConfig={schoolConfig} />} />
+          <Route path="/events" element={<Events schoolConfig={schoolConfig} />} />
           <Route path="/toppers" element={<Toppers />} />
+          <Route path="/all-teachers" element={<Teachers />} />
+          <Route path="/teacher/:id" element={<TeacherProfile />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login schoolConfig={schoolConfig} />} />
+          <Route path="/register" element={<Register schoolConfig={schoolConfig} />} />
           <Route path="/status" element={<StatusDashboard />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <Dashboard schoolConfig={schoolConfig} />
             </ProtectedRoute>
           } />
           <Route path="/admin-dashboard" element={
@@ -48,9 +63,14 @@ function AppLayout() {
               <AdminDashboard />
             </ProtectedRoute>
           } />
+          <Route path="/teacher-dashboard" element={
+            <ProtectedRoute>
+              <TeacherDashboard />
+            </ProtectedRoute>
+          } />
         </Routes>
       </main>
-      {!isAdminDashboard && <Footer />}
+      {!isAdminDashboard && <Footer schoolConfig={schoolConfig} />}
     </div>
   );
 }
