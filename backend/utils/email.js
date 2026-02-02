@@ -10,17 +10,17 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const sendApprovalEmail = async (to, name, studentId, stream, subjects) => {
+const sendApprovalEmail = async (to, name, studentId, stream, subjects, pdfBuffer) => {
     try {
         const subjectList = subjects && subjects.length > 0 ? subjects.join(', ') : 'Standard Curriculum';
         
         const mailOptions = {
             from: `"School Admin" <${process.env.EMAIL_USER}>`,
             to: to,
-            subject: 'Admission Approved - Welcome to RPHS',
+            subject: 'Admission Approved - Welcome',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                    <h2 style="color: #1e40af;">Welcome to Ranaghat Pal Chowdhury High (H.S.) School!</h2>
+                    <h2 style="color: #1e40af;">Welcome to ${process.env.SCHOOL_NAME || 'Our School'}!</h2>
                     <p>Dear <strong>${name}</strong>,</p>
                     <p>We are pleased to inform you that your admission application has been <strong>APPROVED</strong>.</p>
                     
@@ -33,18 +33,7 @@ const sendApprovalEmail = async (to, name, studentId, stream, subjects) => {
                         <p><strong>Approved Elective Subjects:</strong> ${subjectList}</p>
                     </div>
 
-                    <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fcd34d; margin-bottom: 20px;">
-                        <strong style="color: #92400e;">Marks Calculation Policy (Class 11/12):</strong>
-                        <p style="margin: 5px 0; font-size: 0.9em;">
-                            For Higher Secondary students, the final result is calculated based on the <strong>Best of 5 Subjects</strong> rule:
-                            <br>
-                            1. <strong>Bengali (Compulsory)</strong> + <strong>English (Compulsory)</strong> are always counted.
-                            <br>
-                            2. The <strong>Top 3 highest scoring Elective Subjects</strong> are added to the total.
-                            <br>
-                            3. The 4th Elective (lowest score) becomes optional and is excluded from the grand total (Out of 500).
-                        </p>
-                    </div>
+                    <p>Please find your <strong>Official Admission Receipt</strong> attached to this email.</p>
 
                     <p>You can now login to your student dashboard to view routines, results, and pay fees.</p>
                     
@@ -54,7 +43,14 @@ const sendApprovalEmail = async (to, name, studentId, stream, subjects) => {
                         If you have any questions, please reply to this email or visit the school office.
                     </p>
                 </div>
-            `
+            `,
+            attachments: pdfBuffer ? [
+                {
+                    filename: `Admission_Receipt_${studentId}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ] : []
         };
 
         const info = await transporter.sendMail(mailOptions);

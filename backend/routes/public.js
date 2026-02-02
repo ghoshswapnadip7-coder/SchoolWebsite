@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/teachers', async (req, res) => {
     try {
         const teachers = await User.find({ role: 'TEACHER' })
-            .select('name bio subjects profilePic socialLinks gallery achievements email coverImage vlogs blogs')
+            .select('name bio subjects profilePic socialLinks gallery achievements email coverImage vlogs blogs designation')
             .sort({ name: 1 });
         res.json(teachers);
     } catch (error) {
@@ -18,7 +18,7 @@ router.get('/teachers', async (req, res) => {
 router.get('/teachers/:id', async (req, res) => {
     try {
         const teacher = await User.findById(req.params.id)
-            .select('name bio subjects profilePic socialLinks gallery achievements email coverImage vlogs blogs');
+            .select('name bio subjects profilePic socialLinks gallery achievements email coverImage vlogs blogs designation');
         if (!teacher) return res.status(404).json({ error: 'Teacher not found' });
         res.json(teacher);
     } catch (error) {

@@ -96,6 +96,11 @@ const UserSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     likes: { type: Number, default: 0 }
   }],
+  designation: {
+    type: String,
+    enum: ["Assistant HM", "HM", "Clerk", "Para teacher", "Arts", "Science"],
+    default: "Arts"
+  },
 });
 
 // Virtual for id to match Prisma's output if needed

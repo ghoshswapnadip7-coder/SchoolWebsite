@@ -31,7 +31,7 @@ const Contact = ({ schoolConfig }) => {
                 textAlign: 'center'
             }}>
                 <div className="container">
-                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Contact {schoolConfig.name}</h1>
+                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem', color: 'white' }}>Contact {schoolConfig.name}</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '800px', margin: '0 auto', opacity: 0.9 }}>
                         {schoolConfig.description}
                     </p>

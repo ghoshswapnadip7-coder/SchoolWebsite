@@ -31,6 +31,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
     const [summary, setSummary] = useState({ drafts: [], published: [], errors: [] });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     
     // Batch Report Report State (Local to this component or lifted?)
     const [batchReport, setBatchReport] = useState([]);
@@ -42,19 +43,23 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
 
     const fetchSummary = async () => {
         setLoading(true);
+        setError(null);
         try {
-
             const res = await fetch(`${API_URL}/admin/results/status-summary`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-
                 setSummary(data);
             } else {
-                console.error('Summary fetch failed with status:', res.status);
+                const errData = await res.json().catch(() => ({}));
+                setError(errData.error || `Server returned ${res.status}`);
             }
-        } catch (error) { console.error('Summary fetch error:', error); } finally { setLoading(false); }
+        } catch (err) { 
+            setError("Check your internet connection or server status."); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     const handleBatchPublish = async () => {
@@ -81,21 +86,47 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
                 <Icon size={20} /> {title} ({items.length})
             </h3>
 
-            <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }} className="scroll-card">
-                {items.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No items.</p> : items.map((item, idx) => (
-                    <div key={idx} style={{ padding: '8px', background: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <strong style={{ color: 'var(--text-main)' }}>{item.student?.name}</strong> <span style={{ color: 'var(--text-muted)' }}>({item.student?.studentId})</span>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.semester}</div>
-                            {item.issues && item.issues.length > 0 && (
-                                <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px', fontWeight: 600 }}>
-                                    {item.issues.join(', ')}
+            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '5px' }} className="scroll-card">
+                {items.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No items.</p> : items.map((item, idx) => {
+                    const totalSubjects = item.student?.subjects?.length || 0;
+                    const enteredSubjects = item.results?.length || 0;
+                    const isMissing = totalSubjects > 0 && enteredSubjects < totalSubjects;
+
+                    return (
+                        <div key={idx} style={{ 
+                            padding: '12px', 
+                            background: 'var(--background)', 
+                            borderRadius: '12px', 
+                            border: isMissing ? '2px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-color)', 
+                            fontSize: '0.85rem', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            position: 'relative'
+                        }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <strong style={{ color: 'var(--text-main)' }}>{item.student?.name}</strong> 
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({item.student?.studentId})</span>
+                                    {isMissing && <AlertTriangle size={14} color="#ef4444" title={`Missing ${totalSubjects - enteredSubjects} subject(s)`} />}
                                 </div>
-                            )}
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.semester}</div>
+                                {item.teachers && item.teachers.length > 0 && (
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--secondary)', fontWeight: 700 }}>Recorded by: {item.teachers.join(', ')}</div>
+                                )}
+                                <div style={{ fontSize: '0.7rem', color: isMissing ? '#ef4444' : 'var(--text-muted)', marginTop: '2px', fontWeight: isMissing ? 700 : 400 }}>
+                                    {enteredSubjects} of {totalSubjects} subjects entered
+                                </div>
+                                {item.issues && item.issues.length > 0 && (
+                                    <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px', fontWeight: 600 }}>
+                                        {item.issues.join(', ')}
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={() => onSelectStudent(item.student)} style={{ border: 'none', background: 'var(--surface-hover)', padding: '5px 10px', borderRadius: '8px', color: 'var(--secondary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem' }}>View →</button>
                         </div>
-                        <button onClick={() => onSelectStudent(item.student)} style={{ border: 'none', background: 'none', color: 'var(--secondary)', cursor: 'pointer', fontWeight: 600 }}>View →</button>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -103,8 +134,16 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
     return (
         <div style={{ marginTop: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Publishing Overview <small style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(Total Records: {summary.totalCount || 0})</small></h3>
-                <button onClick={fetchSummary} className="btn" style={{ background: 'var(--surface-hover)', color: 'var(--text-main)', padding: '6px 12px', fontSize: '0.8rem' }}><RefreshCw size={14} /> Refresh</button>
+                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>
+                    Publishing Overview 
+                    <small style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '5px' }}>
+                        (Records: {summary.totalCount || 0} | Status: {summary.dbStatus || 'Unknown'})
+                    </small>
+                </h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    {error && <span style={{ color: '#ef4444', fontSize: '0.8rem', alignSelf: 'center' }}>⚠️ {error}</span>}
+                    <button onClick={fetchSummary} className="btn" style={{ background: 'var(--surface-hover)', color: 'var(--text-main)', padding: '6px 12px', fontSize: '0.8rem' }}><RefreshCw size={14} className={loading ? "spin-anim" : ""} /> Refresh</button>
+                </div>
             </div>
             
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
@@ -166,6 +205,14 @@ const ResultStatusDashboard = ({ onSelectStudent, token, onRefresh }) => {
                     <button onClick={() => setReportModalOpen(false)} className="btn btn-primary">Close</button>
                 </div>
             </Modal>
+
+            {/* Debug Section (Only if something is wrong) */}
+            {summary.totalCount > 0 && summary.drafts.length === 0 && summary.published.length === 0 && (
+                <div style={{ marginTop: '2rem', padding: '1rem', background: '#fee2e2', borderRadius: '12px', color: '#991b1b' }}>
+                    <strong>Debug Info:</strong> There are {summary.totalCount} records in the DB, but they couldn't be grouped. 
+                    Check if students for these records still exist.
+                </div>
+            )}
         </div>
     );
 };
@@ -185,6 +232,18 @@ const useMobile = () => {
     }, []);
 
     return isMobile;
+};
+
+const getDesignationStyle = (des) => {
+    const styles = {
+        'HM': { bg: '#fee2e2', text: '#ef4444', label: 'Headmaster' },
+        'Assistant HM': { bg: '#fff1f2', text: '#f43f5e', label: 'Assistant HM' },
+        'Clerk': { bg: '#e0f2fe', text: '#0ea5e9', label: 'Office Clerk' },
+        'Para teacher': { bg: '#fef3c7', text: '#d97706', label: 'Para Teacher' },
+        'Arts': { bg: '#f0fdf4', text: '#22c55e', label: 'Faculty of Arts' },
+        'Science': { bg: '#faf5ff', text: '#a855f7', label: 'Faculty of Science' }
+    };
+    return styles[des] || { bg: 'var(--surface-hover)', text: 'var(--text-muted)', label: des || 'Faculty' };
 };
 
 // Reusable Student List Component (Desktop: Table, Mobile: Cards)
@@ -304,6 +363,107 @@ const StudentList = ({ students, onSelect, actionLabel, onBlock }) => {
     );
 };
 
+// Chat Moderation Component
+const ChatReview = ({ token }) => {
+    const [flagged, setFlagged] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        fetchFlagged();
+    }, []);
+
+    const fetchFlagged = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/chat/flagged`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) setFlagged(await res.json());
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    };
+
+    const handleResolve = async (id, action) => {
+        if (!confirm(`Are you sure you want to ${action} this message?`)) return;
+        try {
+            const res = await fetch(`${API_URL}/chat/resolve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ messageId: id, action })
+            });
+
+            if (res.ok) {
+                setFlagged(prev => prev.filter(m => m._id !== id));
+                alert(`Message ${action}d successfully`);
+            }
+        } catch (err) { alert("Failed to resolve"); }
+    };
+
+    return (
+        <div style={{ padding: '1rem' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}>
+                <Shield size={24} color="#ef4444" />
+                Waitlisted Messages ({flagged.length})
+            </h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                Review messages flagged by the profanity filter. 
+                <strong> Approve</strong> makes it visible to everyone. 
+                <strong> Reject</strong> deletes it permanently.
+            </p>
+            
+            {loading ? <div style={{ textAlign: 'center' }}><Loader2 className="spin-anim" /> Loading...</div> : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                    {flagged.length === 0 ? <div style={{ padding: '2rem', background: 'var(--surface)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-muted)' }}>No flagged messages to review. Good job!</div> : 
+                    flagged.map(msg => (
+                        <div key={msg._id} style={{ 
+                            background: 'var(--surface)', padding: '1.5rem', borderRadius: '12px', 
+                            borderLeft: '4px solid #ef4444', 
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            display: 'flex', flexDirection: 'column', gap: '10px'
+                        }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{msg.senderName} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({msg.senderRole})</span></span>
+                                 <span style={{ color: 'var(--text-muted)' }}>{new Date(msg.timestamp).toLocaleString()}</span>
+                             </div>
+                             <div style={{ fontSize: '0.85rem', color: '#ef4444', background: '#fef2f2', padding: '4px 8px', borderRadius: '4px', alignSelf: 'flex-start' }}>
+                                 Reason: {msg.violationReason || 'Profanity'}
+                             </div>
+                             <div style={{ 
+                                 background: 'var(--surface-hover)', padding: '1rem', borderRadius: '8px', 
+                                 fontSize: '1rem', color: 'var(--text-main)', fontStyle: 'italic'
+                             }}>
+                                 "{msg.content}"
+                             </div>
+                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
+                                 <button 
+                                     onClick={() => handleResolve(msg._id, 'reject')}
+                                     style={{ 
+                                         padding: '8px 16px', background: '#fee2e2', color: '#ef4444', 
+                                         border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600,
+                                         display: 'flex', alignItems: 'center', gap: '6px'
+                                     }}
+                                 >
+                                     <Trash2 size={16} /> Delete
+                                 </button>
+                                 <button 
+                                     onClick={() => handleResolve(msg._id, 'approve')}
+                                     style={{ 
+                                         padding: '8px 16px', background: '#dcfce7', color: '#16a34a', 
+                                         border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600,
+                                         display: 'flex', alignItems: 'center', gap: '6px'
+                                     }}
+                                 >
+                                     <CheckCircle size={16} /> Approve
+                                 </button>
+                             </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const AdminDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -348,7 +508,8 @@ const AdminDashboard = () => {
     const [newGalleryItem, setNewGalleryItem] = useState({ title: '', imageUrl: '', description: '', category: '' });
     const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', location: '', imageUrl: '' });
     const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '', studentId: '', className: 'Class-10', rollNumber: '', profilePic: '' });
-    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '', subjects: '', bio: '' });
+    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '', subjects: '', bio: '', designation: 'Arts' });
+    const [editingTeacher, setEditingTeacher] = useState(null);
     const [studentSearch, setStudentSearch] = useState('');
     const [routineForm, setRoutineForm] = useState({ periods: [{ subject: '', teacher: '', startTime: '', endTime: '', room: '' }] });
     const [resultForm, setResultForm] = useState({ subject: '', marks: '', projectMarks: '', grade: '', semester: 'Final Exam 2025', className: 'Class-10' });
@@ -385,6 +546,7 @@ const AdminDashboard = () => {
         { id: 'students', label: 'Students', icon: Users },
         { id: 'teachers', label: 'Teachers', icon: User },
         { id: 'results', label: 'Results', icon: Award },
+        { id: 'chat-moderation', label: 'Chats', icon: MessageSquare, badge: 0 }, 
         { id: 'fees', label: 'Fees', icon: CreditCard },
         { id: 'queries', label: 'Queries', icon: Bell, badge: studentRequests.filter(r => r.status === 'PENDING').length },
         { id: 'events', label: 'Events', icon: CalendarPlus }
@@ -621,22 +783,58 @@ const AdminDashboard = () => {
     const handleAddTeacher = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${API_URL}/admin/teachers`, {
-                method: 'POST',
+            const method = editingTeacher ? 'PUT' : 'POST';
+            const url = editingTeacher ? `${API_URL}/admin/teachers/${editingTeacher._id || editingTeacher.id}` : `${API_URL}/admin/teachers`;
+            
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify(newTeacher)
             });
+
             if (res.ok) {
-                alert('Teacher added successfully!');
+                alert(editingTeacher ? 'Teacher updated successfully!' : 'Teacher added successfully!');
                 fetchData();
-                setNewTeacher({ name: '', email: '', password: '', subjects: '', bio: '' });
+                setNewTeacher({ name: '', email: '', password: '', subjects: '', bio: '', designation: 'Arts' });
+                setEditingTeacher(null);
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to add teacher');
+                alert(data.error || 'Failed to process teacher');
             }
         } catch (err) {
             alert('Error connecting to server');
         }
+    };
+
+    const handleDeleteTeacher = async (id) => {
+        if (!confirm('Are you sure you want to delete this teacher?')) return;
+        try {
+            const res = await fetch(`${API_URL}/admin/teachers/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (res.ok) {
+                alert('Teacher deleted successfully!');
+                fetchData();
+            } else {
+                alert('Failed to delete teacher');
+            }
+        } catch (err) {
+            alert('Error connecting to server');
+        }
+    };
+
+    const handleEditTeacher = (teacher) => {
+        setEditingTeacher(teacher);
+        setNewTeacher({
+            name: teacher.name,
+            email: teacher.email,
+            password: '', // Keep empty unless changing
+            subjects: Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : teacher.subjects,
+            bio: teacher.bio || '',
+            designation: teacher.designation || 'Arts'
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleUpdateProfilePic = async (sid, url) => {
@@ -1157,44 +1355,145 @@ const AdminDashboard = () => {
                             </div>
 
                             <form onSubmit={handleAddTeacher} style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr 1fr 1.5fr 1fr auto', 
-                                gap: '0.75rem', 
-                                marginBottom: '2rem', 
-                                padding: '1.25rem', 
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1.25rem', 
+                                marginBottom: '2.5rem', 
+                                padding: '1.75rem', 
                                 background: 'var(--surface-hover)', 
-                                borderRadius: '16px',
+                                borderRadius: '24px',
                                 border: '1px solid var(--border-color)',
-                                alignItems: 'center'
+                                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
                             }}>
-                                <h3 style={{ gridColumn: '1/-1', fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--text-muted)', fontWeight: 600 }}>Register New Teacher</h3>
-                                <input required placeholder="Full Name" value={newTeacher.name} onChange={e => setNewTeacher({...newTeacher, name: e.target.value})} />
-                                <input required type="email" placeholder="Email" value={newTeacher.email} onChange={e => setNewTeacher({...newTeacher, email: e.target.value})} />
-                                <input required type="password" placeholder="Initial Password" value={newTeacher.password} onChange={e => setNewTeacher({...newTeacher, password: e.target.value})} />
-                                <input required placeholder="Subjects (comma sep)" value={newTeacher.subjects} onChange={e => setNewTeacher({...newTeacher, subjects: e.target.value})} />
-                                <button type="submit" className="btn btn-primary" style={{ height: '42px' }}><Plus size={20} /></button>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ width: '4px', height: '16px', background: 'var(--secondary)', borderRadius: '2px' }}></div>
+                                        <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-main)', fontWeight: 700 }}>
+                                            {editingTeacher ? `Editing Faculty: ${editingTeacher.name}` : 'Register New Faculty Member'}
+                                        </h3>
+                                    </div>
+                                    {editingTeacher && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                setEditingTeacher(null);
+                                                setNewTeacher({ name: '', email: '', password: '', subjects: '', bio: '', designation: 'Arts' });
+                                            }}
+                                            style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800, padding: '6px 12px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                                        >
+                                            Cancel Editing
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+                                    gap: '1rem' 
+                                }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>FULL NAME</label>
+                                        <input required placeholder="e.g. Dr. Ramesh Kumar" value={newTeacher.name} onChange={e => setNewTeacher({...newTeacher, name: e.target.value})} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>EMAIL ADDRESS</label>
+                                        <input required type="email" placeholder="official@school.com" value={newTeacher.email} onChange={e => setNewTeacher({...newTeacher, email: e.target.value})} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{editingTeacher ? "RESET PASSWORD (OPTIONAL)" : "ACCOUNT PASSWORD"}</label>
+                                        <input placeholder={editingTeacher ? "Leave blank to keep current" : "Minimum 6 characters"} type="password" required={!editingTeacher} value={newTeacher.password} onChange={e => setNewTeacher({...newTeacher, password: e.target.value})} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>ASSIGNED SUBJECTS</label>
+                                        <input required placeholder="e.g. Math, Physics, Chemistry" value={newTeacher.subjects} onChange={e => setNewTeacher({...newTeacher, subjects: e.target.value})} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>OFFICIAL DESIGNATION</label>
+                                        <select value={newTeacher.designation} onChange={e => setNewTeacher({...newTeacher, designation: e.target.value})}>
+                                            {["Arts", "Science", "HM", "Assistant HM", "Clerk", "Para teacher"].map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>BIO / DESCRIPTION</label>
+                                        <input placeholder="Short Intro..." value={newTeacher.bio} onChange={e => setNewTeacher({...newTeacher, bio: e.target.value})} />
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="btn btn-primary" style={{ padding: '1rem', width: '100%', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem' }}>
+                                    {editingTeacher ? <><Check size={20} /> Update Teacher Profile</> : <><Plus size={20} /> Register New Teacher</>}
+                                </button>
                             </form>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                 {teachers.map(t => (
-                                    <div key={t._id || t.id} style={{ background: 'var(--surface)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                            <img 
-                                                src={t.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
-                                                alt={t.name} 
-                                                style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--surface-hover)' }}
-                                            />
-                                            <div>
-                                                <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{t.name}</h4>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>{t.email}</div>
+                                    <div key={t._id || t.id} style={{ 
+                                        background: 'var(--surface)', 
+                                        padding: '1.5rem', 
+                                        borderRadius: '24px', 
+                                        border: '1px solid var(--border-color)', 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        gap: '1.25rem', 
+                                        position: 'relative',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                        boxShadow: 'var(--shadow-md)'
+                                    }} className="hover-card">
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', position: 'absolute', top: '20px', right: '20px', zIndex: 2 }}>
+                                            <button onClick={() => handleEditTeacher(t)} style={{ background: 'var(--background)', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '8px', borderRadius: '12px', display: 'flex', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} title="Edit Faculty">
+                                                <Edit3 size={16} />
+                                            </button>
+                                            <button onClick={() => handleDeleteTeacher(t._id || t.id)} style={{ background: 'var(--background)', border: '1px solid var(--border-color)', color: '#ef4444', cursor: 'pointer', padding: '8px', borderRadius: '12px', display: 'flex', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} title="Delete Faculty">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', paddingTop: '10px' }}>
+                                            <div style={{ position: 'relative', marginBottom: '15px' }}>
+                                                <img 
+                                                    src={t.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                                                    alt={t.name} 
+                                                    style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--surface-hover)', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+                                                />
+                                                <div style={{ 
+                                                    position: 'absolute',
+                                                    bottom: '-10px',
+                                                    left: '50%',
+                                                    transform: 'translateX(-50%)',
+                                                    background: getDesignationStyle(t.designation).bg,
+                                                    color: getDesignationStyle(t.designation).text,
+                                                    padding: '4px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 900,
+                                                    textTransform: 'uppercase',
+                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                                    whiteSpace: 'nowrap',
+                                                    border: `1px solid ${getDesignationStyle(t.designation).text}22`
+                                                }}>
+                                                    {getDesignationStyle(t.designation).label}
+                                                </div>
                                             </div>
+                                            
+                                            <h4 style={{ margin: '15px 0 2px 0', fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800 }}>{t.name}</h4>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t.email}</div>
                                         </div>
                                         
-                                        <div style={{ background: 'var(--surface-hover)', padding: '10px', borderRadius: '8px' }}>
-                                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>SUBJECTS</div>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        <div style={{ background: 'var(--surface-hover)', padding: '16px', borderRadius: '20px', flex: 1 }}>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', textAlign: 'center' }}>Subject Expertise</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                                                 {t.subjects && t.subjects.map((sub, idx) => (
-                                                    <span key={idx} style={{ fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{sub}</span>
+                                                    <span key={idx} style={{ 
+                                                        fontSize: '0.75rem', 
+                                                        background: 'var(--surface)', 
+                                                        border: '1px solid var(--border-color)', 
+                                                        color: 'var(--text-main)', 
+                                                        padding: '4px 12px', 
+                                                        borderRadius: '10px', 
+                                                        fontWeight: 600,
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                                    }}>{sub}</span>
                                                 ))}
                                             </div>
                                         </div>
@@ -2145,6 +2444,9 @@ const AdminDashboard = () => {
                         </div>
                     )}
 
+                    {/* CHAT MODERATION */}
+                    {activeTab === 'chat-moderation' && <ChatReview token={localStorage.getItem('token')} />}
+
                     {/* EVENTS */}
                     {activeTab === 'events' && (
                         <div>
@@ -2182,7 +2484,7 @@ const AdminDashboard = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                                 <h2>School Notices & Announcements</h2>
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    {['ALL', 'PUBLISHED', 'DRAFT', 'SCHEDULED'].map(f => (
+                                    {['ALL', 'PUBLISHED', 'DRAFT', 'SCHEDULED', 'PENDING'].map(f => (
                                         <button 
                                             key={f} 
                                             onClick={() => setNoticeFilter(f)}
@@ -2191,13 +2493,13 @@ const AdminDashboard = () => {
                                                 borderRadius: '20px', 
                                                 fontSize: '0.8rem', 
                                                 fontWeight: 700,
-                                                background: noticeFilter === f ? 'var(--secondary)' : 'var(--surface)',
+                                                background: noticeFilter === f ? 'var(--secondary)' : (f === 'PENDING' && notices.filter(n => n.status === 'PENDING').length > 0 ? 'rgba(245, 158, 11, 0.2)' : 'var(--surface)'),
                                                 color: noticeFilter === f ? 'var(--primary)' : 'var(--text-muted)',
-                                                border: '1px solid var(--border-color)',
+                                                border: noticeFilter === f ? '1px solid var(--secondary)' : '1px solid var(--border-color)',
                                                 cursor: 'pointer'
                                             }}
                                         >
-                                            {f}
+                                            {f} {f === 'PENDING' && notices.filter(n => n.status === 'PENDING').length > 0 && `(${notices.filter(n => n.status === 'PENDING').length})`}
                                         </button>
                                     ))}
                                 </div>
@@ -2216,8 +2518,9 @@ const AdminDashboard = () => {
                                         <option value="ALL">All Students</option>
                                         <option value="CLASS">Specific Class</option>
                                         <option value="STUDENT">Specific Student</option>
+                                        <option value="TEACHER">All Teachers</option>
                                     </select>
-                                    {newNotice.targetType !== 'ALL' && (
+                                    {['CLASS', 'STUDENT'].includes(newNotice.targetType) && (
                                         newNotice.targetType === 'CLASS' ? (
                                             <select value={newNotice.targetId} onChange={e => setNewNotice({...newNotice, targetId: e.target.value})}>
                                                 <option value="">Select Class</option>
@@ -2293,14 +2596,31 @@ const AdminDashboard = () => {
                                                     </div>
                                                     <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
                                                         {notice.status === 'SCHEDULED' ? `Scheduled for: ${new Date(notice.scheduledFor).toLocaleString()}` : `Created: ${new Date(notice.createdAt).toLocaleString()}`}
+                                                        {notice.author && ` | By: ${notice.author.name} (${notice.author.role})`}
                                                     </small>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    <button onClick={() => handleReuseNotice(notice)} className="btn" style={{ padding: '6px 12px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem' }} title="Reuse this notice template"><RefreshCw size={14} style={{ marginRight: '6px' }} /> Reuse</button>
-                                                    <button onClick={() => handleEditNotice(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Edit"><Edit3 size={16} /></button>
-                                                    <button onClick={() => handleDownloadNoticePDF(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Download PDF"><Download size={16} /></button>
-                                                    <button onClick={() => handleDeleteNotice(notice._id || notice.id)} className="btn" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }} title="Delete"><Trash2 size={16} /></button>
-                                                </div>
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        {notice.status === 'PENDING' && (
+                                                            <>
+                                                                <button onClick={async () => {
+                                                                    if(confirm('Approve and Publish this notice?')) {
+                                                                        await fetch(`${API_URL}/admin/notices/${notice._id || notice.id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify({ status: 'PUBLISHED' })});
+                                                                        fetchData();
+                                                                    }
+                                                                }} className="btn" style={{ padding: '6px 12px', background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.75rem', fontWeight: 700 }}>Approve</button>
+                                                                <button onClick={async () => {
+                                                                    if(confirm('Reject this notice?')) {
+                                                                        await fetch(`${API_URL}/admin/notices/${notice._id || notice.id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify({ status: 'REJECTED' })});
+                                                                        fetchData();
+                                                                    }
+                                                                }} className="btn" style={{ padding: '6px 12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', fontSize: '0.75rem', fontWeight: 700 }}>Reject</button>
+                                                            </>
+                                                        )}
+                                                        <button onClick={() => handleReuseNotice(notice)} className="btn" style={{ padding: '6px 12px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem' }} title="Reuse this notice template"><RefreshCw size={14} style={{ marginRight: '6px' }} /> Reuse</button>
+                                                        <button onClick={() => handleEditNotice(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Edit"><Edit3 size={16} /></button>
+                                                        <button onClick={() => handleDownloadNoticePDF(notice)} className="btn" style={{ padding: '6px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title="Download PDF"><Download size={16} /></button>
+                                                        <button onClick={() => handleDeleteNotice(notice._id || notice.id)} className="btn" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }} title="Delete"><Trash2 size={16} /></button>
+                                                    </div>
                                             </div>
                                             <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.6, opacity: notice.status === 'DRAFT' ? 0.6 : 1 }}>{notice.content}</p>
                                             {notice.attachments && notice.attachments.filter(u => u && u !== 'undefined').length > 0 && (

@@ -20,6 +20,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
 import AuthStatusManager from './components/AuthStatusManager';
+import ChatWidget from './components/ChatWidget';
 
 import { useLocation } from 'react-router-dom';
 
@@ -28,13 +29,13 @@ function AppLayout() {
   const isAdminDashboard = location.pathname === '/admin-dashboard';
 
   const schoolConfig = {
-    name: "ABC School",
-    description: "This is a School Description",
-    foundedYear: "0000",
-    address: "ABC Street, City, State, Zip",
-    phone: "+91 0000000000",
-    email: "info@abcschool.com",
-    headmaster: "ABC Headmaster"
+    name: import.meta.env.VITE_SCHOOL_NAME || "ABC School",
+    description: import.meta.env.VITE_SCHOOL_DESC || "This is a School Description",
+    foundedYear: import.meta.env.VITE_SCHOOL_ESTD || "0000",
+    address: import.meta.env.VITE_SCHOOL_ADDRESS || "ABC Street, City, State, Zip",
+    phone: import.meta.env.VITE_SCHOOL_PHONE || "+91 0000000000",
+    email: import.meta.env.VITE_SCHOOL_EMAIL || "info@abcschool.com",
+    headmaster: import.meta.env.VITE_SCHOOL_HEADMASTER || "ABC Headmaster"
   };
 
   return (
@@ -49,7 +50,7 @@ function AppLayout() {
           <Route path="/toppers" element={<Toppers />} />
           <Route path="/all-teachers" element={<Teachers />} />
           <Route path="/teacher/:id" element={<TeacherProfile />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/contact" element={<Contact schoolConfig={schoolConfig} />} />
           <Route path="/login" element={<Login schoolConfig={schoolConfig} />} />
           <Route path="/register" element={<Register schoolConfig={schoolConfig} />} />
           <Route path="/status" element={<StatusDashboard />} />
@@ -71,6 +72,7 @@ function AppLayout() {
         </Routes>
       </main>
       {!isAdminDashboard && <Footer schoolConfig={schoolConfig} />}
+      <ChatWidget />
     </div>
   );
 }

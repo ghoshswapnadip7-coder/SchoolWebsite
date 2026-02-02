@@ -14,16 +14,16 @@ const NoticeSchema = new mongoose.Schema({
     }],
     targetType: {
         type: String,
-        enum: ['ALL', 'CLASS', 'STUDENT'],
+        enum: ['ALL', 'CLASS', 'STUDENT', 'TEACHER'],
         default: 'ALL'
     },
     targetId: {
-        type: String, // Class name (e.g., 'Class-10') or Student ID
+        type: String, // Class name or Student ID
         required: false
     },
     status: {
         type: String,
-        enum: ['DRAFT', 'PUBLISHED', 'SCHEDULED'],
+        enum: ['DRAFT', 'PUBLISHED', 'SCHEDULED', 'PENDING'],
         default: 'PUBLISHED'
     },
     scheduledFor: {

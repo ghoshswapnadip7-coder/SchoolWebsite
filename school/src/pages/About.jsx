@@ -13,7 +13,7 @@ const About = ({ schoolConfig }) => {
                 textAlign: 'center'
             }}>
                 <div className="container">
-                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem' }}>Our Legacy of Excellence</h1>
+                    <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '1.5rem', color: 'white' }}>Our Legacy of Excellence</h1>
                     <p style={{ fontSize: '1.3rem', maxWidth: '850px', margin: '0 auto', opacity: 0.9, lineHeight: 1.6 }}>
                         Serving the community since {schoolConfig.foundedYear}, {schoolConfig.name} is dedicated to nurturing future leaders through holistic education and moral integrity.
                     </p>

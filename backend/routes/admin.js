@@ -6,6 +6,7 @@ const Topper = require('../models/Topper');
 const Result = require('../models/Result');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const StudentRequest = require('../models/StudentRequest');
+const { generateAdmissionReceiptPDF } = require('../utils/pdfGenerator');
 const AdmissionSetting = require('../models/AdmissionSetting');
 const Payment = require('../models/Payment');
 const Notice = require('../models/Notice');
@@ -106,14 +107,14 @@ router.get('/teachers', authenticateAdmin, async (req, res) => {
 // Add new teacher
 router.post('/teachers', authenticateAdmin, async (req, res) => {
     try {
-        const { name, email, password, subjects, bio } = req.body;
+        const { name, email, password, subjects, bio, designation } = req.body;
         
         const existing = await User.findOne({ email });
         if (existing) return res.status(400).json({ error: 'Email already exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // Handle subjects (string to array if needed)
+        // Handle subjects (string/array to array)
         const subjectList = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
 
         const teacher = await User.create({
@@ -122,6 +123,7 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
             password: hashedPassword,
             role: 'TEACHER',
             subjects: subjectList,
+            designation: designation || 'Arts',
             bio
         });
 
@@ -131,7 +133,126 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
     }
 });
 
+// Update teacher
+router.put('/teachers/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const { name, email, subjects, bio, designation, password } = req.body;
+        const updateData = { name, email, bio, designation };
+        
+        if (subjects) {
+            updateData.subjects = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
+        }
+        
+        if (password) {
+            updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        const teacher = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        res.json(teacher);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update teacher' });
+    }
+});
+
+// Delete teacher
+router.delete('/teachers/:id', authenticateAdmin, async (req, res) => {
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Teacher deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete teacher' });
+    }
+});
+
 // --- Result Management ---
+
+// Get Results Dashboard Summary (Drafts vs Published)
+router.get('/results/status-summary', authenticateAdmin, async (req, res) => {
+    try {
+        const allResults = await Result.find()
+            .populate('user', 'name studentId email isBlocked')
+            .populate('teacher', 'name');
+
+        // console.log(`[DEBUG] Total Results in DB: ${allResults.length}`);
+        
+        const summary = {
+            totalCount: allResults.length,
+            drafts: [],
+            published: [],
+            errors: [],
+            dbStatus: 'Connected',
+            lastUpdated: new Date().toISOString()
+        };
+
+        const grouped = {};
+        // Group by User+Semester
+        allResults.forEach(r => {
+            // Safety Check: Use student ID if available, otherwise mark as Orphaned
+            const userId = (r.user && r.user._id) ? r.user._id.toString() : (r.user ? r.user.toString() : 'ORPHAN');
+            const semester = r.semester || 'Unknown Semester';
+            const key = `${userId}|${semester}`;
+            
+            if (!grouped[key]) {
+                const studentProfile = r.user && typeof r.user === 'object' ? r.user : { name: 'Unknown (Orphaned)', studentId: '???', email: '', isBlocked: false };
+                
+                grouped[key] = {
+                    student: studentProfile,
+                    semester: semester,
+                    results: [],
+                    isOrphan: !r.user,
+                    teachers: new Set()
+                };
+            }
+            
+            grouped[key].results.push(r);
+            if (r.teacher && r.teacher.name) {
+                grouped[key].teachers.add(r.teacher.name);
+            }
+        });
+
+        // Convert Sets to Arrays for JSON serialization
+        Object.values(grouped).forEach(g => {
+            g.teachers = Array.from(g.teachers);
+        });
+
+        // Categorize
+        Object.values(grouped).forEach(g => {
+            // Check for errors
+            const issues = [];
+            if (g.isOrphan) issues.push('Orphaned Result (No Student)');
+            else {
+                if (!g.student.email) issues.push('No Email');
+                if (g.student.isBlocked) issues.push('Blocked');
+            }
+            
+            // Determine status (Strict boolean check)
+            const allPublished = g.results.every(r => r.isPublished === true);
+
+            // If ALREADY fully published
+            if (allPublished) {
+                // If there are issues, it goes to errors
+                if (issues.length > 0) {
+                     summary.errors.push({ ...g, issues });
+                } else {
+                     summary.published.push(g);
+                }
+            } else {
+                // Drafts
+                if (issues.length > 0)  {
+                    summary.errors.push({ ...g, issues }); 
+                } else {
+                    summary.drafts.push(g);
+                }
+            }
+        });
+        
+        res.header('Cache-Control', 'no-store');
+        res.json(summary);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch summary' });
+    }
+});
 
 // Get results for a specific student
 router.get('/results/:studentId', authenticateAdmin, async (req, res) => {
@@ -209,75 +330,6 @@ router.post('/results/publish', authenticateAdmin, async (req, res) => {
     } catch (error) {
         console.error('Publish Error:', error);
         res.status(500).json({ error: 'Failed to publish results' });
-    }
-});
-
-// Get Results Dashboard Summary (Drafts vs Published)
-router.get('/results/status-summary', authenticateAdmin, async (req, res) => {
-    try {
-        const allResults = await Result.find().populate('user', 'name studentId email isBlocked');
-
-        
-        const summary = {
-            totalCount: allResults.length, // Debug info
-            drafts: [],
-            published: [],
-            errors: []
-        };
-
-        const grouped = {};
-        // Group by User+Semester
-        allResults.forEach(r => {
-            const userId = r.user ? r.user._id : 'ORPHAN';
-            const key = `${userId}|${r.semester}`;
-            
-            if (!grouped[key]) {
-                grouped[key] = {
-                    student: r.user || { name: 'Unknown (Orphaned)', studentId: '???', email: '', isBlocked: false },
-                    semester: r.semester,
-                    results: [],
-                    isOrphan: !r.user
-                };
-            }
-            grouped[key].results.push(r);
-        });
-
-        // Categorize
-        Object.values(grouped).forEach(g => {
-            // Check for errors
-            const issues = [];
-            if (g.isOrphan) issues.push('Orphaned Result (No Student)');
-            else {
-                if (!g.student.email) issues.push('No Email');
-                if (g.student.isBlocked) issues.push('Blocked');
-            }
-            
-            // Determine status (Strict boolean check)
-            const allPublished = g.results.every(r => r.isPublished === true);
-
-            // If ALREADY fully published
-            if (allPublished) {
-                // If there are issues, it goes to errors
-                if (issues.length > 0) {
-                     summary.errors.push({ ...g, issues });
-                } else {
-                     summary.published.push(g);
-                }
-            } else {
-                // Drafts
-                if (issues.length > 0)  {
-                    summary.errors.push({ ...g, issues }); 
-                } else {
-                    summary.drafts.push(g);
-                }
-            }
-        });
-        
-        res.header('Cache-Control', 'no-store');
-        res.json(summary);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to fetch summary' });
     }
 });
 
@@ -437,16 +489,28 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 feesDueDate: automaticDueDate // Auto-set from admission expiry
             });
             
-            // Send Approval Email
+            // Generate Admission Receipt PDF
+            let pdfBuffer = null;
+            try {
+                pdfBuffer = await generateAdmissionReceiptPDF(request);
+            } catch (pdfErr) {
+                console.error('[PDF ERROR] Failed to generate admission receipt:', pdfErr);
+            }
+
+            // Send Approval Email with PDF
             await sendApprovalEmail(
                 request.email, 
                 request.name, 
                 request.studentId, 
                 request.stream, 
-                request.subjects 
+                request.subjects,
+                pdfBuffer
             );
+
+            // Clean up temporary plain password
+            request.plainPassword = undefined;
             
-            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved | Fees: ${calculatedFees}`);
+            // console.log(`[EMAIL SENT] To: ${request.email} | Subject: Admission Approved | PDF: ${!!pdfBuffer}`);
         } else {
             // Update existing student for promotion
 
@@ -523,7 +587,7 @@ router.post('/registration-requests/:id/accept', authenticateAdmin, async (req, 
                 request.subjects 
             );
 
-            console.log(`[EMAIL SENT] To: ${request.email} | Subject: Promotion Approved`);
+            // console.log(`[EMAIL SENT] To: ${request.email} | Subject: Promotion Approved`);
         }
 
         request.status = 'ACCEPTED';
@@ -553,7 +617,7 @@ router.post('/registration-requests/:id/reject', authenticateAdmin, async (req, 
         // Send Rejection Email
         await sendRejectionEmail(request.email, request.name, reason);
         
-        console.log(`[REJECT] Request ${id} marked as REJECTED and email sent to ${request.email}`);
+        // console.log(`[REJECT] Request ${id} marked as REJECTED and email sent to ${request.email}`);
         res.json({ message: 'Registration request declined and student notified.' });
     } catch (error) {
         console.error('Decline Request Internal Error:', error);
@@ -874,10 +938,24 @@ router.get('/notices/list', authenticateAdmin, async (req, res) => {
                 query = { status };
             }
         }
-        const notices = await Notice.find(query).sort({ createdAt: -1 });
+        const notices = await Notice.find(query).populate('author', 'name role').sort({ createdAt: -1 });
         res.json(notices);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch notices' });
+    }
+});
+
+// Approve/Reject Teacher Notice
+router.put('/notices/:id/status', authenticateAdmin, async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!['PUBLISHED', 'REJECTED', 'PENDING'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+        const notice = await Notice.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        res.json(notice);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update notice status' });
     }
 });
 

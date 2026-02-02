@@ -34,6 +34,10 @@ const ResultSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    teacher: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     createdAt: {
         type: Date,
         default: Date.now

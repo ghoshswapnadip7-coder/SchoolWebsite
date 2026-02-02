@@ -7,6 +7,7 @@ const Teachers = () => {
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
+    const [selectedPost, setSelectedPost] = useState(null);
 
     useEffect(() => {
         fetch(`${API_URL}/public/teachers`)
@@ -23,7 +24,38 @@ const Teachers = () => {
 
     const navigate = useNavigate();
 
-    const TeacherCard = ({ teacher }) => (
+    const getDesignationStyle = (des) => {
+        if (!des) return { bg: 'var(--surface-hover)', text: 'var(--text-muted)', label: 'Faculty' };
+        
+        const lowerDes = des.toLowerCase();
+        
+        if (lowerDes.includes('headmaster') || lowerDes === 'hm') {
+            return { bg: '#fee2e2', text: '#ef4444', label: 'Headmaster' };
+        }
+        if (lowerDes.includes('assistant') || lowerDes.includes('asst')) {
+            return { bg: '#fff1f2', text: '#f43f5e', label: 'Assistant HM' };
+        }
+        if (lowerDes.includes('clerk')) {
+            return { bg: '#e0f2fe', text: '#0ea5e9', label: 'Office Clerk' };
+        }
+        if (lowerDes.includes('para')) {
+            return { bg: '#fef3c7', text: '#d97706', label: 'Para Teacher' };
+        }
+        if (lowerDes.includes('arts')) {
+            return { bg: '#f0fdf4', text: '#22c55e', label: 'Faculty of Arts' };
+        }
+        if (lowerDes.includes('science')) {
+            return { bg: '#faf5ff', text: '#a855f7', label: 'Faculty of Science' };
+        }
+        
+        return { bg: 'var(--surface-hover)', text: 'var(--text-muted)', label: des };
+    };
+
+    const TeacherCard = ({ teacher }) => {
+        const designation = teacher.designation || teacher.role || 'Faculty';
+        const style = getDesignationStyle(designation);
+        
+        return (
         <div 
             onClick={() => navigate(`/teacher/${teacher._id || teacher.id}`)}
             style={{ 
@@ -39,7 +71,13 @@ const Teachers = () => {
             }}
             className="hover-card"
         >
-            <div style={{ height: '140px', background: 'linear-gradient(45deg, var(--primary) 0%, var(--secondary) 100%)', position: 'relative' }}>
+            <div style={{ 
+                height: '140px', 
+                background: teacher.coverImage ? `url(${teacher.coverImage})` : 'linear-gradient(45deg, var(--primary) 0%, var(--secondary) 100%)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                position: 'relative' 
+            }}>
                 <img 
                     src={teacher.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
                     alt={teacher.name} 
@@ -56,12 +94,25 @@ const Teachers = () => {
                     }}
                 />
             </div>
-            <div style={{ padding: '60px 20px 20px 20px', textAlign: 'center', flex: 1 }}>
+            <div style={{ padding: '60px 20px 20px 20px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ 
+                    background: style.bg,
+                    color: style.text,
+                    padding: '2px 10px',
+                    borderRadius: '10px',
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    marginBottom: '8px',
+                    border: `1px solid ${style.text}33`
+                }}>
+                    {style.label}
+                </span>
                 <h3 style={{ margin: '0 0 5px 0', fontSize: '1.2rem' }}>{teacher.name}</h3>
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     {teacher.subjects && teacher.subjects.join(' • ')}
                 </p>
-                {teacher.bio && <p style={{ marginTop: '15px', fontSize: '0.9rem', color: 'var(--text-main)', opacity: 0.8, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{teacher.bio}</p>}
+                {teacher.bio && <p style={{ marginTop: '15px', fontSize: '0.9rem', color: 'var(--text-main)', opacity: 0.8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.7rem' }}>{teacher.bio}</p>}
                 
                 <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
                     <button className="btn is-small" style={{ borderRadius: '20px' }}>View Full Profile</button>
@@ -69,6 +120,7 @@ const Teachers = () => {
             </div>
         </div>
     );
+    };
 
     const Modal = ({ teacher, onClose }) => {
         const [activeTab, setActiveTab] = useState('grid'); // grid, vlogs, blogs
@@ -157,9 +209,30 @@ const Teachers = () => {
                         {/* Content Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: activeTab === 'blogs' ? '1fr' : 'repeat(3, 1fr)', gap: activeTab === 'blogs' ? '20px' : '4px' }}>
                             {activeTab === 'grid' && teacher.gallery?.map((img, i) => (
-                                <div key={i} style={{ aspectRatio: '1/1', background: 'var(--surface-hover)', position: 'relative' }} className="group">
-                                    <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    {img.caption && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.8rem' }}>{img.caption}</div>}
+                                <div 
+                                    key={i} 
+                                    onClick={() => setSelectedPost({ ...img, type: 'POST', author: teacher.name })}
+                                    style={{ aspectRatio: '1/1', background: 'var(--surface-hover)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }} 
+                                    className="instagram-post"
+                                >
+                                    <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }} />
+                                    <div className="post-overlay" style={{ 
+                                        position: 'absolute', 
+                                        top: 0, left: 0, right: 0, bottom: 0, 
+                                        background: 'rgba(0,0,0,0.4)', 
+                                        color: 'white', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        padding: '20px',
+                                        opacity: 0,
+                                        transition: 'opacity 0.3s ease',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                                            {img.caption || 'View Post'}
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                             
@@ -213,10 +286,77 @@ const Teachers = () => {
             
             <Modal teacher={selectedTeacher} onClose={() => setSelectedTeacher(null)} />
             
+            {/* Post Detail Modal */}
+            {selectedPost && (
+                <div 
+                    onClick={() => setSelectedPost(null)}
+                    style={{
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.9)',
+                        zIndex: 2000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '40px',
+                        backdropFilter: 'blur(10px)'
+                    }}
+                >
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'var(--surface)',
+                            width: '100%',
+                            maxWidth: '1000px',
+                            height: '80vh',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                        }}
+                    >
+                        {/* Left Side: Photo */}
+                        <div style={{ flex: 1.4, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <img src={selectedPost.url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                        
+                        {/* Right Side: Info */}
+                        <div style={{ flex: 1, padding: '30px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-color)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid var(--border-color)' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--surface-hover)', overflow: 'hidden' }}>
+                                    <img src={selectedTeacher?.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                                <span style={{ fontWeight: 700 }}>{selectedTeacher?.name}</span>
+                            </div>
+                            
+                            <div style={{ flex: 1, overflowY: 'auto' }}>
+                                <p style={{ lineHeight: 1.6, fontSize: '1rem' }}>{selectedPost.caption || 'No caption provided.'}</p>
+                            </div>
+
+                            <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
+                                <button 
+                                    onClick={() => setSelectedPost(null)}
+                                    className="btn" 
+                                    style={{ width: '100%', background: '#000', color: '#fff', border: 'none' }}
+                                >
+                                    Close Post
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <style>{`
                 .hover-card:hover {
                     transform: translateY(-5px) !important;
                     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+                }
+                .instagram-post:hover .post-overlay {
+                    opacity: 1 !important;
+                }
+                .instagram-post:hover img {
+                    transform: scale(1.05);
                 }
             `}</style>
         </div>

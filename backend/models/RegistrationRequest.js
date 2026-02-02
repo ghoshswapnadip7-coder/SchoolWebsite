@@ -49,6 +49,9 @@ const RegistrationRequestSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    plainPassword: { // Temporary storage for PDF receipt, deleted on approval
+        type: String
+    },
     status: {
         type: String,
         enum: ['PENDING', 'ACCEPTED', 'REJECTED'],

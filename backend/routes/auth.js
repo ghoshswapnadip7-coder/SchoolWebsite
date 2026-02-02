@@ -181,9 +181,23 @@ router.post('/apply-registration', async (req, res) => {
             return res.status(400).json({ error: 'Fresh admissions require Aadhar and Marksheet (Images/PDFs)' });
         }
 
-        const totalStudents = await User.countDocuments({ role: 'STUDENT' });
-        const totalReqs = await RegistrationRequest.countDocuments();
-        const studentIdToUse = `RPHS${new Date().getFullYear()}${String(totalStudents + totalReqs + 101).padStart(4, '0')}`;
+        const currentYear = new Date().getFullYear();
+        let totalRecords = await User.countDocuments({ role: 'STUDENT' }) + await RegistrationRequest.countDocuments();
+        let studentIdToUse = '';
+        let isUnique = false;
+        let offset = 101;
+
+        while (!isUnique) {
+            studentIdToUse = `RPHS${currentYear}${String(totalRecords + offset).padStart(4, '0')}`;
+            const existsInUsers = await User.findOne({ studentId: studentIdToUse });
+            const existsInReqs = await RegistrationRequest.findOne({ studentId: studentIdToUse });
+            
+            if (!existsInUsers && !existsInReqs) {
+                isUnique = true;
+            } else {
+                totalRecords++; // Increment and try next
+            }
+        }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -197,7 +211,8 @@ router.post('/apply-registration', async (req, res) => {
             subjects,
             applicationType: 'FRESH',
             documents,
-            password: hashedPassword
+            password: hashedPassword,
+            plainPassword: password
         });
 
         res.status(201).json({ 
@@ -205,7 +220,7 @@ router.post('/apply-registration', async (req, res) => {
             studentId: request.studentId 
         });
     } catch (error) {
-        console.error(error);
+        // console.error(error);
         res.status(500).json({ error: 'Failed to submit application' });
     }
 });
@@ -217,6 +232,11 @@ router.post('/register', async (req, res) => {
 
         if (!name || !email || !password || !role) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Security: Prevent creating ADMIN accounts via API
+        if (role === 'ADMIN') {
+            return res.status(403).json({ error: 'Admin accounts can only be created via the system console for security reasons.' });
         }
 
         if (role === 'TEACHER' && secretKey !== 'TEACHER123') {
