@@ -29,3 +29,7 @@ build/
 # Coverage
 coverage/
 node_modules
+
+# Uploads
+backend/uploads/
+uploads/
