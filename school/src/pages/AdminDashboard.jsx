@@ -1558,8 +1558,8 @@ const AdminDashboard = () => {
                                         border: '1px solid var(--border-color)'
                                     }}>
                                         <div>
-                                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.5rem' }}>School UPI Payment</h3>
-                                            <p style={{ margin: 0, opacity: 0.9, maxWidth: '400px' }}>Scan this QR code to pay fees securely via any UPI App (GPay, PhonePe, Paytm). Please use Student ID as the reference.</p>
+                                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: '#ffffff' }}>School UPI Payment</h3>
+                                            <p style={{ margin: 0, opacity: 0.9, maxWidth: '400px', color: '#ffffff' }}>Scan this QR code to pay fees securely via any UPI App (GPay, PhonePe, Paytm). Please use Student ID as the reference.</p>
                                         </div>
                                         <div style={{ background: 'var(--surface)', padding: '10px', borderRadius: '12px' }}>
                                             <img 

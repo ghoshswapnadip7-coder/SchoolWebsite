@@ -671,7 +671,7 @@ const TeacherDashboard = () => {
                             <button
                                 onClick={() => setShowNoticeModal(true)}
                                 style={{
-                                    position: 'fixed', bottom: '80px', right: '20px',
+                                    position: 'fixed', bottom: '160px', right: '20px',
                                     width: '56px', height: '56px', borderRadius: '50%',
                                     background: 'var(--btn-secondary-bg)', color: 'var(--btn-secondary-text)',
                                     border: 'none', boxShadow: 'var(--shadow-lg)',

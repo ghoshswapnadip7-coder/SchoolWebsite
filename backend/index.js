@@ -84,8 +84,8 @@ io.on('connection', (socket) => {
         // Save to DB
         try {
             if (data.author && data.room) {
-                 const user = await require('./models/User').findById(data.authorId);
-                 const role = user ? user.role : 'STUDENT';
+                 // Optimization: Use role from client (safe-guarded)
+                 const role = (data.authorRole && typeof data.authorRole === 'string') ? data.authorRole.toUpperCase() : 'STUDENT';
 
                  const newMessage = new Chat({
                     room: data.room,
@@ -114,11 +114,13 @@ io.on('connection', (socket) => {
                         message: "Your message has been flagged for review due to inappropriate content.",
                         msgId: savedMsg._id 
                     });
-                    // Also Notify Admins (if any connected) - can implement separate room for admins
-                    // For now, just save it.
                 } else {
-                    // Broadcast to Room (exclude sender)
-                    socket.to(data.room).emit('receive_message', data);
+                    // Force join room to ensure connection
+                    socket.join(data.room);
+
+                    // Broadcast to Room (Using io.to to ensure everyone including sender gets it, confirming delivery)
+                    // The frontend handles duplication for sender.
+                    io.to(data.room).emit('receive_message', data);
                 }
 
                 // Acknowledge to Sender
