@@ -2,20 +2,25 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+The following versions of the project are currently supported with security updates:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+We take the security of our School Website seriously. If you believe you have found a security vulnerability, please report it to us as described below.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+**Please do not report security vulnerabilities through public GitHub issues.**
+
+### How to Report
+
+Please report security vulnerabilities by emailing the project maintainers. We will acknowledge your email within 48 hours.
+
+### Disclosure Policy
+
+- We request that you do not publicly disclose the issue until we have had a chance to verify and fix it.
+- We will do our best to respond to your report within 5 business days.
+- We will keep you updated on our progress toward a fix.
